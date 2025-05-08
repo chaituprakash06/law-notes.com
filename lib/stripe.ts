@@ -29,10 +29,25 @@ export type CartItem = {
   quantity: number;
 };
 
+// Add cart type to Window interface
+declare global {
+  interface Window {
+    cart: CartItem[];
+    dispatchEvent(event: Event): boolean;
+  }
+}
+
 // Initialize cart in window if undefined
 export const initCart = () => {
-  if (typeof window !== 'undefined' && !window.cart) {
-    window.cart = [];
+  if (typeof window !== 'undefined') {
+    // Try to get cart from localStorage if available
+    try {
+      const savedCart = localStorage.getItem('cart');
+      window.cart = savedCart ? JSON.parse(savedCart) : [];
+    } catch (e) {
+      // If there's an error, initialize with empty array
+      window.cart = [];
+    }
   }
 };
 
@@ -42,7 +57,8 @@ export const addToCart = (item: CartItem) => {
   
   initCart();
   
-  const existingItemIndex = window.cart.findIndex(cartItem => cartItem.id === item.id);
+  // Now TypeScript knows window.cart is defined after initCart()
+  const existingItemIndex = window.cart?.findIndex(cartItem => cartItem.id === item.id) ?? -1;
   
   if (existingItemIndex >= 0) {
     // Item already exists, increase quantity
@@ -50,6 +66,13 @@ export const addToCart = (item: CartItem) => {
   } else {
     // Add new item
     window.cart.push(item);
+  }
+  
+  // Save to localStorage
+  try {
+    localStorage.setItem('cart', JSON.stringify(window.cart));
+  } catch (e) {
+    console.error('Error saving cart to localStorage:', e);
   }
   
   // Notify listeners of cart update
@@ -63,6 +86,13 @@ export const removeFromCart = (id: string) => {
   initCart();
   
   window.cart = window.cart.filter(item => item.id !== id);
+  
+  // Save to localStorage
+  try {
+    localStorage.setItem('cart', JSON.stringify(window.cart));
+  } catch (e) {
+    console.error('Error saving cart to localStorage:', e);
+  }
   
   // Notify listeners of cart update
   window.dispatchEvent(new CustomEvent('cartUpdated'));
@@ -79,6 +109,13 @@ export const updateCartItemQuantity = (id: string, quantity: number) => {
   );
   
   window.cart = updatedCart;
+  
+  // Save to localStorage
+  try {
+    localStorage.setItem('cart', JSON.stringify(window.cart));
+  } catch (e) {
+    console.error('Error saving cart to localStorage:', e);
+  }
   
   // Notify listeners of cart update
   window.dispatchEvent(new CustomEvent('cartUpdated'));
@@ -98,6 +135,23 @@ export const calculateCartTotal = (): number => {
   
   initCart();
   return window.cart.reduce((total, item) => total + item.price * item.quantity, 0);
+};
+
+// Clear cart
+export const clearCart = (): void => {
+  if (typeof window === 'undefined') return;
+  
+  window.cart = [];
+  
+  // Remove from localStorage
+  try {
+    localStorage.removeItem('cart');
+  } catch (e) {
+    console.error('Error clearing cart from localStorage:', e);
+  }
+  
+  // Notify listeners of cart update
+  window.dispatchEvent(new CustomEvent('cartUpdated'));
 };
 
 // Setup config for your Stripe products
