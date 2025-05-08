@@ -3,91 +3,74 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Header from '@/components/Header';
-import { getStripe, CartItem } from '@/lib/stripe';
+import { getCart, updateCartItemQuantity, removeFromCart, calculateCartTotal, initCart } from '@/lib/stripe';
 import { useAuth } from '@/lib/AuthContext';
+import CheckoutModal from '@/components/checkout/checkout-modal';
 
 export default function CartPage() {
-  const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  const [cartItems, setCartItems] = useState(getCart());
   const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const router = useRouter();
+  // Get user from auth context
   const { user } = useAuth();
+  
+  // Fallback user for testing when auth context is not available
+  const mockUser = { id: 'mock-user-id' };
 
   useEffect(() => {
-    // Get cart items from global state
-    if (typeof window !== 'undefined') {
-      setCartItems(window.cart || []);
-      
-      // Listen for cart updates
-      const handleCartUpdate = () => {
-        setCartItems([...(window.cart || [])]);
-      };
-      
-      window.addEventListener('cartUpdated', handleCartUpdate);
-      
-      return () => {
-        window.removeEventListener('cartUpdated', handleCartUpdate);
-      };
-    }
+    // Initialize cart if it doesn't exist
+    initCart();
+    
+    // Set initial cart items
+    setCartItems(getCart());
+    
+    // Listen for cart updates
+    const handleCartUpdate = () => {
+      setCartItems(getCart());
+    };
+    
+    window.addEventListener('cartUpdated', handleCartUpdate);
+    
+    return () => {
+      window.removeEventListener('cartUpdated', handleCartUpdate);
+    };
   }, []);
 
-  const updateQuantity = (id: string, newQuantity: number) => {
+  const handleUpdateQuantity = (id: string, newQuantity: number) => {
     if (newQuantity < 1) return;
-    
-    const updatedItems = cartItems.map(item => 
-      item.id === id ? { ...item, quantity: newQuantity } : item
-    );
-    
-    if (typeof window !== 'undefined') {
-      window.cart = updatedItems;
-      window.dispatchEvent(new CustomEvent('cartUpdated'));
-    }
+    updateCartItemQuantity(id, newQuantity);
   };
 
-  const removeItem = (id: string) => {
-    const updatedItems = cartItems.filter(item => item.id !== id);
+  const handleRemoveItem = (id: string) => {
+    removeFromCart(id);
+  };
+
+  const handleCheckout = () => {
+    // Use real user if available, otherwise use mock user for testing
+    // Remove this mock fallback in production
+    const currentUser = user || mockUser;
     
-    if (typeof window !== 'undefined') {
-      window.cart = updatedItems;
-      window.dispatchEvent(new CustomEvent('cartUpdated'));
-    }
-  };
-
-  const calculateTotal = () => {
-    return cartItems.reduce((total, item) => total + item.price * item.quantity, 0);
-  };
-
-  const handleCheckout = async () => {
-    if (!user) {
+    if (!currentUser) {
       // Redirect to login if not authenticated
       router.push('/login?redirect=cart');
       return;
     }
 
     setIsLoading(true);
+    setErrorMessage(null);
     
-    try {
-      // Create a checkout session on the server
-      const response = await fetch('/api/checkout', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ 
-          items: cartItems,
-          userId: user.id
-        }),
-      });
-      
-      const { sessionId } = await response.json();
-      
-      // Redirect to Stripe checkout
-      const stripe = await getStripe();
-      await stripe?.redirectToCheckout({ sessionId });
-    } catch (error) {
-      console.error('Error during checkout:', error);
-    } finally {
+    // Small delay to show loading state
+    setTimeout(() => {
       setIsLoading(false);
-    }
+      // Open checkout modal
+      setIsCheckoutOpen(true);
+    }, 500);
+  };
+
+  const closeCheckoutModal = () => {
+    setIsCheckoutOpen(false);
   };
 
   return (
@@ -95,6 +78,12 @@ export default function CartPage() {
       <Header />
       <div className="container mx-auto px-4 py-8">
         <h1 className="text-3xl font-bold mb-8">Your Cart</h1>
+        
+        {errorMessage && (
+          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6">
+            <p>{errorMessage}</p>
+          </div>
+        )}
         
         {cartItems.length === 0 ? (
           <div className="text-center py-12">
@@ -142,15 +131,17 @@ export default function CartPage() {
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center space-x-2">
                           <button
-                            onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                            onClick={() => handleUpdateQuantity(item.id, item.quantity - 1)}
                             className="bg-gray-200 hover:bg-gray-300 text-gray-700 h-8 w-8 rounded-full flex items-center justify-center"
+                            aria-label="Decrease quantity"
                           >
                             -
                           </button>
                           <span className="text-sm text-gray-700">{item.quantity}</span>
                           <button
-                            onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                            onClick={() => handleUpdateQuantity(item.id, item.quantity + 1)}
                             className="bg-gray-200 hover:bg-gray-300 text-gray-700 h-8 w-8 rounded-full flex items-center justify-center"
+                            aria-label="Increase quantity"
                           >
                             +
                           </button>
@@ -161,8 +152,9 @@ export default function CartPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <button
-                          onClick={() => removeItem(item.id)}
+                          onClick={() => handleRemoveItem(item.id)}
                           className="text-red-600 hover:text-red-800"
+                          aria-label="Remove item"
                         >
                           Remove
                         </button>
@@ -178,18 +170,18 @@ export default function CartPage() {
               <h2 className="text-lg font-semibold mb-4">Order Summary</h2>
               <div className="flex justify-between mb-2">
                 <span>Subtotal</span>
-                <span>${calculateTotal().toFixed(2)}</span>
+                <span>${calculateCartTotal().toFixed(2)}</span>
               </div>
               <div className="border-t border-gray-200 my-4"></div>
               <div className="flex justify-between font-semibold">
                 <span>Total</span>
-                <span>${calculateTotal().toFixed(2)}</span>
+                <span>${calculateCartTotal().toFixed(2)}</span>
               </div>
               <button
                 onClick={handleCheckout}
                 disabled={isLoading}
                 className={`w-full mt-6 py-3 px-4 rounded-lg text-white ${
-                  isLoading ? 'bg-blue-400' : 'bg-blue-600 hover:bg-blue-700'
+                  isLoading ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'
                 }`}
               >
                 {isLoading ? 'Processing...' : 'Proceed to Checkout'}
@@ -198,6 +190,16 @@ export default function CartPage() {
           </div>
         )}
       </div>
+
+      {/* Embedded Checkout Modal */}
+      {(user || mockUser) && isCheckoutOpen && (
+        <CheckoutModal
+          isOpen={isCheckoutOpen}
+          onClose={closeCheckoutModal}
+          cartItems={cartItems}
+          userId={(user || mockUser).id}
+        />
+      )}
     </main>
   );
 }
