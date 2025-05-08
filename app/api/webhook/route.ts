@@ -7,7 +7,9 @@ import { supabase } from '@/lib/supabase';
 export async function POST(request: Request) {
   try {
     const body = await request.text();
-    const signature = headers().get('stripe-signature') as string;
+    // Fix for Next.js 15: headers() now returns a Promise
+    const headersList = await headers();
+    const signature = headersList.get('stripe-signature') as string;
     
     // Verify webhook signature
     const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
