@@ -1,9 +1,26 @@
+// lib/stripe.ts
 'use client';
 
 import { loadStripe, Stripe } from '@stripe/stripe-js';
 
 // Cache the stripe instance
 let stripePromise: Promise<Stripe | null>;
+
+// Type for cart items
+export type CartItem = {
+  id: string;
+  title: string;
+  price: number;
+  quantity: number;
+};
+
+// Add cart type to Window interface (only once in the entire app)
+declare global {
+  interface Window {
+    cart: CartItem[];
+    dispatchEvent(event: Event): boolean;
+  }
+}
 
 // Initialize client-side Stripe (only runs in browser)
 export const getStripe = () => {
@@ -21,32 +38,18 @@ export const getStripe = () => {
   return stripePromise;
 };
 
-// Type for cart items
-export type CartItem = {
-  id: string;
-  title: string;
-  price: number;
-  quantity: number;
-};
-
-// Add cart type to Window interface
-declare global {
-  interface Window {
-    cart: CartItem[];
-    dispatchEvent(event: Event): boolean;
-  }
-}
-
 // Initialize cart in window if undefined
 export const initCart = () => {
   if (typeof window !== 'undefined') {
-    // Try to get cart from localStorage if available
-    try {
-      const savedCart = localStorage.getItem('cart');
-      window.cart = savedCart ? JSON.parse(savedCart) : [];
-    } catch (e) {
-      // If there's an error, initialize with empty array
-      window.cart = [];
+    if (!window.cart) {
+      // Try to get cart from localStorage if available
+      try {
+        const savedCart = localStorage.getItem('cart');
+        window.cart = savedCart ? JSON.parse(savedCart) : [];
+      } catch (e) {
+        // If there's an error, initialize with empty array
+        window.cart = [];
+      }
     }
   }
 };
@@ -57,8 +60,7 @@ export const addToCart = (item: CartItem) => {
   
   initCart();
   
-  // Now TypeScript knows window.cart is defined after initCart()
-  const existingItemIndex = window.cart?.findIndex(cartItem => cartItem.id === item.id) ?? -1;
+  const existingItemIndex = window.cart.findIndex(cartItem => cartItem.id === item.id);
   
   if (existingItemIndex >= 0) {
     // Item already exists, increase quantity
