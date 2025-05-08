@@ -3,24 +3,16 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Header from '@/components/Header';
-import { supabase } from '@/lib/supabase';
 import { getStripe, CartItem } from '@/lib/stripe';
+import { useAuth } from '@/lib/AuthContext';
 
 export default function CartPage() {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
-  const [user, setUser] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
+  const { user } = useAuth();
 
   useEffect(() => {
-    // Check if user is logged in
-    const checkUser = async () => {
-      const { data } = await supabase.auth.getSession();
-      setUser(data.session?.user || null);
-    };
-
-    checkUser();
-
     // Get cart items from global state
     if (typeof window !== 'undefined') {
       setCartItems(window.cart || []);
@@ -100,7 +92,7 @@ export default function CartPage() {
 
   return (
     <main className="min-h-screen bg-white">
-      <Header user={user} />
+      <Header />
       <div className="container mx-auto px-4 py-8">
         <h1 className="text-3xl font-bold mb-8">Your Cart</h1>
         
