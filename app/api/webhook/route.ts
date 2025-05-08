@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { headers } from 'next/headers';
-import { stripe } from '@/lib/stripe';
+import { stripe } from '@/lib/stripe-server';
 import { supabase } from '@/lib/supabase';
 
 // This is the Stripe webhook handler for handling payment events
