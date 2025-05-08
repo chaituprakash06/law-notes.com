@@ -13,24 +13,24 @@ const mockNotes: Note[] = [
     title: 'Tax Law Notes',
     description: 'Tax notes as at LSE 2024 exams',
     price: 19.99,
-    preview_url: '/previews/tax_image.png',
-    file_url: '/previews/tax_law.pdf',
+    preview_url: 'previews/tax_image.png', // Remove leading slash for Supabase storage
+    file_url: 'previews/tax_law.pdf',
   },
   {
     id: '2',
-    title: 'Company Law Notes',
-    description: 'Company notes as at LSE 2024 exams',
+    title: 'Jurisprudence Law Notes', // Fixed the order to match your image
+    description: 'Jurisprudence notes as at LSE 2024 exams',
     price: 19.99,
-    preview_url: '/previews/juris_image.png',
-    file_url: '/previews/juris_law.docx',
+    preview_url: 'previews/juris_image.png', // Remove leading slash for Supabase storage
+    file_url: 'previews/juris_law.docx',
   },
   {
     id: '3',
-    title: 'Jurisprudence Law Notes',
-    description: 'Jurisprudence notes as at LSE 2024 exam',
+    title: 'Company Law Notes',
+    description: 'Company notes as at LSE 2024 exams',
     price: 19.99,
-    preview_url: '/previews/company_image.png',
-    file_url: '/previews/company_law.docx',
+    preview_url: 'previews/company_image.png', // Remove leading slash for Supabase storage
+    file_url: 'previews/company_law.docx',
   },
 ];
 
@@ -44,6 +44,7 @@ export default function Home() {
     // Fetch notes from Supabase
     const fetchNotes = async () => {
       try {
+        // First attempt to fetch from the database
         const { data, error } = await supabase
           .from('notes')
           .select('*')
@@ -51,29 +52,46 @@ export default function Home() {
           
         if (error) {
           console.error('Error fetching notes:', error);
-          setNotes(mockNotes); // Use mock data as fallback
+          // Use mock data if fetching fails
+          loadMockNotes();
         } else if (data && data.length > 0) {
           // Transform storage URLs to be fully qualified
-          const notesWithUrls = data.map(note => {
-            // Get the public URL for the preview and file
-            const previewUrl = getStoragePublicUrl(note.preview_url);
-            const fileUrl = getStoragePublicUrl(note.file_url);
-            
-            return {
-              ...note,
-              preview_url: previewUrl,
-              file_url: fileUrl
-            };
-          });
+          const notesWithUrls = data.map(note => ({
+            ...note,
+            // Don't transform URLs here as getStoragePublicUrl will be called in the component
+          }));
           
           setNotes(notesWithUrls);
         } else {
-          setNotes(mockNotes); // Use mock data if no notes found
+          // Use mock data if no notes found
+          loadMockNotes();
         }
       } catch (error) {
         console.error('Error fetching notes:', error);
-        setNotes(mockNotes); // Use mock data as fallback
+        loadMockNotes();
       }
+    };
+
+    // Function to load mock notes with public URLs
+    const loadMockNotes = () => {
+      // Pre-load each image to check if they exist
+      Promise.all(
+        mockNotes.map(async note => {
+          try {
+            // Get public URLs for preview images
+            const previewUrl = await getStoragePublicUrl(note.preview_url);
+            return {
+              ...note,
+              preview_url: previewUrl || note.preview_url, // Use original if transformation fails
+            };
+          } catch (e) {
+            console.error(`Error processing note ${note.id}:`, e);
+            return note;
+          }
+        })
+      ).then(processedNotes => {
+        setNotes(processedNotes);
+      });
     };
 
     // If user is logged in, fetch their purchased notes
@@ -117,10 +135,13 @@ export default function Home() {
         
         {isLoading ? (
           <div className="text-center py-12">
-            <p>Loading notes...</p>
+            <div className="flex justify-center items-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+            </div>
+            <p className="mt-4 text-gray-600">Loading notes...</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {notes.map((note) => (
               <NoteCard 
                 key={note.id} 

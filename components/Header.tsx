@@ -1,9 +1,45 @@
 // components/Header.tsx
-import { useAuth } from '@/lib/AuthContext';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/lib/AuthContext';
+import { getCart } from '@/lib/stripe';
 
 export default function Header() {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
+  const [cartItemCount, setCartItemCount] = useState(0);
+  const router = useRouter();
+  
+  useEffect(() => {
+    // Update cart count whenever cart changes
+    const updateCartCount = () => {
+      const cart = getCart();
+      const count = cart.reduce((total, item) => total + item.quantity, 0);
+      setCartItemCount(count);
+    };
+    
+    // Initial count
+    updateCartCount();
+    
+    // Listen for cart updates
+    const handleCartUpdate = () => updateCartCount();
+    window.addEventListener('cartUpdated', handleCartUpdate);
+    
+    // Clean up
+    return () => {
+      window.removeEventListener('cartUpdated', handleCartUpdate);
+    };
+  }, []);
+  
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      // Navigate to home page after sign out
+      router.push('/');
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
+  };
   
   return (
     <header className="bg-white shadow-sm">
@@ -19,20 +55,16 @@ export default function Header() {
           
           {user ? (
             <div className="flex items-center space-x-6">
-              {/* Display user email instead of "My Notes" */}
+              {/* Display user email */}
               <span className="text-gray-600">{user.email}</span>
-              <Link 
-                href="/dashboard" 
-                className="text-gray-800 hover:text-blue-600"
-              >
-                Dashboard
-              </Link>
-              <Link 
-                href="/api/auth/signout" 
+              
+              {/* Sign Out Button */}
+              <button 
+                onClick={handleSignOut}
                 className="text-gray-800 hover:text-blue-600"
               >
                 Sign Out
-              </Link>
+              </button>
             </div>
           ) : (
             <div className="flex items-center space-x-6">
@@ -66,7 +98,11 @@ export default function Header() {
                 d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" 
               />
             </svg>
-            {/* Add cart item count badge if needed */}
+            {cartItemCount > 0 && (
+              <span className="absolute -top-2 -right-2 bg-blue-600 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                {cartItemCount}
+              </span>
+            )}
           </Link>
         </div>
       </div>

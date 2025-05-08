@@ -124,16 +124,21 @@ export const getUserPurchasedNotes = async (userId: string) => {
   return { data, error };
 };
 
-/**
+ /**
  * Helper function to get a public URL for Supabase Storage items
  */
 export const getStoragePublicUrl = (path: string, bucket: string = 'law-notes') => {
   // If path is already a full URL, return it as is
-  if (path.startsWith('http')) {
+  if (path?.startsWith('http')) {
     return path;
   }
   
   try {
+    // Handle empty or undefined path
+    if (!path) {
+      return null;
+    }
+    
     // Remove leading slash if present for Supabase Storage
     const storagePath = path.startsWith('/') ? path.substring(1) : path;
     
@@ -141,10 +146,10 @@ export const getStoragePublicUrl = (path: string, bucket: string = 'law-notes') 
       .from(bucket)
       .getPublicUrl(storagePath);
       
-    return data.publicUrl;
+    return data?.publicUrl || null;
   } catch (error) {
     console.error('Error getting public URL:', error);
-    // If there was an error, return the original path
-    return path;
+    // If there was an error, return null
+    return null;
   }
 };

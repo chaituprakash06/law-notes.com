@@ -1,13 +1,15 @@
+// lib/AuthContext.tsx (update the signOut function in useAuth)
 'use client';
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { User } from '@supabase/supabase-js';
-import { supabase, getCurrentSession, signOut } from './supabase';
+import { supabase, getCurrentSession } from './supabase';
+import { useRouter } from 'next/navigation';
 
 type AuthContextType = {
   user: User | null;
   isLoading: boolean;
-  signOut: () => Promise<{ error: any | null }>;
+  signOut: () => Promise<void>;
   refreshUser: () => Promise<void>;
 };
 
@@ -16,11 +18,29 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const router = useRouter();
 
   // Function to refresh the user state
   const refreshUser = async () => {
     const { user: currentUser } = await getCurrentSession();
     setUser(currentUser);
+  };
+
+  // Improved sign out function that handles redirection
+  const signOut = async () => {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      
+      // Clear user state
+      setUser(null);
+      
+      // Navigate to home page
+      router.push('/');
+    } catch (error) {
+      console.error('Error during sign out:', error);
+      throw error;
+    }
   };
 
   useEffect(() => {
