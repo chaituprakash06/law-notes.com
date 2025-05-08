@@ -10,7 +10,7 @@ import { useAuth } from '@/lib/AuthContext';
 // For simplicity, we'll use a simple global variable for now
 declare global {
   interface Window {
-    cart?: CartItem[];
+    cart: CartItem[];
     addToCart?: (item: CartItem) => void;
   }
 }
