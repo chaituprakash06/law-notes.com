@@ -6,32 +6,6 @@ import { Note } from '@/lib/supabase';
 import { CartItem } from '@/lib/stripe';
 import { useAuth } from '@/lib/AuthContext';
 
-// Add this to your global state management later
-// For simplicity, we'll use a simple global variable for now
-declare global {
-  interface Window {
-    cart?: CartItem[];
-    addToCart?: (item: CartItem) => void;
-  }
-}
-
-// Initialize global cart if it doesn't exist
-if (typeof window !== 'undefined') {
-  window.cart = window.cart || [];
-  window.addToCart = (item: CartItem) => {
-    const existingItem = window.cart?.find(cartItem => cartItem.id === item.id);
-    
-    if (existingItem) {
-      existingItem.quantity += 1;
-    } else {
-      window.cart?.push(item);
-    }
-    
-    // Dispatch an event to notify components that the cart has changed
-    window.dispatchEvent(new CustomEvent('cartUpdated'));
-  };
-}
-
 interface NoteCardProps {
   note: Note;
   isPurchased: boolean;
@@ -44,16 +18,16 @@ export default function NoteCard({ note, isPurchased }: NoteCardProps) {
   const router = useRouter();
   
   const handleAddToCart = () => {
-    if (typeof window !== 'undefined' && window.addToCart) {
-      window.addToCart({
-        id: note.id,
-        title: note.title,
-        price: note.price,
-        quantity: 1
-      });
-    }
+    // Use the imported addToCart function instead of window.addToCart
+    addToCart({
+      id: note.id,
+      title: note.title,
+      price: note.price,
+      quantity: 1
+    });
   };
   
+  // Rest of your component stays the same
   const handleDownload = async () => {
     // Redirect to login if not authenticated
     if (!user) {
