@@ -197,7 +197,6 @@ export default function CartPage() {
           isOpen={isCheckoutOpen}
           onClose={closeCheckoutModal}
           cartItems={cartItems}
-          userId={(user || mockUser).id}
         />
       )}
     </main>
