@@ -1,6 +1,7 @@
+// app/api/checkout/route.ts
 import { NextResponse } from 'next/server';
 import { stripe } from '@/lib/stripe-server';
-import { CartItem } from '@/lib/stripe';
+import { CartItem, NOTE_STRIPE_PRICE_IDS } from '@/lib/stripe';
 
 export async function POST(request: Request) {
   try {
@@ -15,31 +16,45 @@ export async function POST(request: Request) {
     }
 
     // Create Stripe line items
-    const lineItems = items.map((item: CartItem) => ({
-      price_data: {
-        currency: 'usd',
-        product_data: {
-          name: item.title,
-          metadata: {
-            id: item.id,
+    const lineItems = items.map((item: CartItem) => {
+      const priceId = NOTE_STRIPE_PRICE_IDS[item.id];
+      
+      // If we have a price ID for this item, use it directly
+      if (priceId) {
+        return {
+          price: priceId,
+          quantity: item.quantity
+        };
+      }
+      
+      // Otherwise, create a price on the fly
+      return {
+        price_data: {
+          currency: 'aud',
+          product_data: {
+            name: item.title,
+            metadata: {
+              id: item.id,
+            },
           },
+          unit_amount: Math.round(item.price * 100), // Convert to cents
         },
-        unit_amount: Math.round(item.price * 100), // Convert to cents
-      },
-      quantity: item.quantity,
-    }));
+        quantity: item.quantity,
+      };
+    });
 
     // Create Stripe checkout session
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       line_items: lineItems,
       mode: 'payment',
-      success_url: `${process.env.NEXT_PUBLIC_SITE_URL}/dashboard?success=true`,
+      success_url: `${process.env.NEXT_PUBLIC_SITE_URL}/checkout/completion?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${process.env.NEXT_PUBLIC_SITE_URL}/cart?canceled=true`,
       metadata: {
         userId,
         noteIds: items.map((item: CartItem) => item.id).join(','),
       },
+      customer_email: items.length > 0 ? 'chaituprakash06@gmail.com' : undefined, // For testing with your email
     });
 
     return NextResponse.json({ sessionId: session.id });

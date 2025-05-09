@@ -1,4 +1,4 @@
-// lib/stripe.ts
+// lib/stripe.ts (updated to include product price IDs)
 'use client';
 
 import { loadStripe, Stripe } from '@stripe/stripe-js';
@@ -156,8 +156,34 @@ export const clearCart = (): void => {
   window.dispatchEvent(new CustomEvent('cartUpdated'));
 };
 
-// Setup config for your Stripe products
-export const NOTES_PRODUCTS = {
-  SINGLE_NOTE: 'law_note_single',
-  BUNDLE: 'law_notes_bundle',
+// Map note IDs to Stripe price IDs
+export const NOTE_STRIPE_PRICE_IDS: Record<string, string> = {
+  'tax-law-notes': 'price_1RMwA905kmxxE8ck0nTL5h7P', // Replace with your actual price ID
+  'jurisprudence-law-notes': 'price_1RMXJ205kmxxE8ckiODTh3PN', // Replace with your actual price ID
+  'company-law-notes': 'price_1RMw9W05kmxxE8ckY5YDsS6y' // Replace with your actual price ID
+};
+
+// Map note IDs to actual note titles and prices (for display and local cart)
+export const NOTES_CATALOG = {
+  'tax-law-notes': {
+    id: 'tax-law-notes',
+    title: 'Tax Law Notes',
+    price: 19.99,
+    description: 'Tax notes as at LSE 2024 exams',
+    file_url: 'notes/tax_law.pdf'
+  },
+  'jurisprudence-law-notes': {
+    id: 'jurisprudence-law-notes',
+    title: 'Jurisprudence Law Notes',
+    price: 19.99,
+    description: 'Jurisprudence notes as at LSE 2024 exams',
+    file_url: 'notes/juris_law.docx'
+  },
+  'company-law-notes': {
+    id: 'company-law-notes',
+    title: 'Company Law Notes',
+    price: 19.99,
+    description: 'Company notes as at LSE 2024 exams',
+    file_url: 'notes/company_law.docx'
+  }
 };
