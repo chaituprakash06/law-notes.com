@@ -1,4 +1,4 @@
-// components/NoteCard.tsx
+// Modified NoteCard.tsx with preview functionality
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -21,25 +21,34 @@ interface NoteCardProps {
 
 export default function NoteCard({ note, isPurchased = false }: NoteCardProps) {
   const [isAddingToCart, setIsAddingToCart] = useState(false);
-  const [imageUrl, setImageUrl] = useState<string | null>(null);
-  const [imageError, setImageError] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [isPreviewLoading, setIsPreviewLoading] = useState(true);
+  const [previewError, setPreviewError] = useState(false);
+  const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
 
   useEffect(() => {
-    // Try to load the preview image
-    const loadPreviewImage = async () => {
+    const loadPreview = async () => {
+      setIsPreviewLoading(true);
+      setPreviewError(false);
+      
       try {
         if (note.preview_url) {
-          // Get the public URL from Supabase
-          const url = getStoragePublicUrl(note.preview_url);
-          setImageUrl(url);
+          // Get the public URL from Supabase - use the function from your existing code
+          const url = getStoragePublicUrl(note.preview_url, 'previews'); // Using 'previews' bucket as seen in image 2
+          setPreviewUrl(url);
+        } else {
+          // If no preview URL is set, set error to true to show fallback
+          setPreviewError(true);
         }
       } catch (error) {
-        console.error('Error loading preview image:', error);
-        setImageError(true);
+        console.error('Error loading preview:', error);
+        setPreviewError(true);
+      } finally {
+        setIsPreviewLoading(false);
       }
     };
 
-    loadPreviewImage();
+    loadPreview();
   }, [note.preview_url]);
 
   // Get file type label
@@ -73,8 +82,8 @@ export default function NoteCard({ note, isPurchased = false }: NoteCardProps) {
   const handleDownload = () => {
     if (!isPurchased) return;
     
-    // Get the file URL
-    const fileUrl = getStoragePublicUrl(note.file_url);
+    // Get the file URL - use the 'notes' bucket based on your database structure
+    const fileUrl = getStoragePublicUrl(note.file_url, 'notes');
     
     // Create a temporary anchor element to trigger the download
     const a = document.createElement('a');
@@ -86,8 +95,15 @@ export default function NoteCard({ note, isPurchased = false }: NoteCardProps) {
     document.body.removeChild(a);
   };
 
-  const handleImageError = () => {
-    setImageError(true);
+  const handlePreviewError = () => {
+    setPreviewError(true);
+  };
+
+  // Function to open the preview in a larger view
+  const handleOpenPreview = () => {
+    if (previewUrl && !previewError) {
+      setIsPreviewModalOpen(true);
+    }
   };
 
   return (
@@ -100,18 +116,41 @@ export default function NoteCard({ note, isPurchased = false }: NoteCardProps) {
           </div>
         )}
         
-        {/* Display the actual preview image if available */}
-        {imageUrl && !imageError ? (
-          <div className="h-full w-full flex items-center justify-center overflow-hidden">
-            <img 
-              src={imageUrl} 
-              alt={note.title}
-              className="object-contain max-h-full max-w-full"
-              onError={handleImageError}
-            />
+        {/* Loading state */}
+        {isPreviewLoading && (
+          <div className="h-full w-full flex items-center justify-center">
+            <div className="animate-spin h-8 w-8 border-4 border-blue-500 rounded-full border-t-transparent"></div>
           </div>
-        ) : (
-          // Fallback to document icon if no image or error loading
+        )}
+        
+        {/* Preview image - shown when available and loaded */}
+        {!isPreviewLoading && previewUrl && !previewError && (
+          <div 
+            className="h-full w-full flex items-center justify-center overflow-hidden cursor-pointer group"
+            onClick={handleOpenPreview}
+          >
+            <div className="relative w-full h-full">
+              <img 
+                src={previewUrl} 
+                alt={`Preview of ${note.title}`}
+                className="object-contain w-full h-full p-2"
+                onError={handlePreviewError}
+              />
+              
+              {/* Hover overlay with magnify icon */}
+              <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 flex items-center justify-center transition-all duration-300">
+                <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+        
+        {/* Fallback document icon - shown when no preview or error */}
+        {(!previewUrl || previewError) && !isPreviewLoading && (
           <div className="h-full w-full flex flex-col items-center justify-center p-4">
             <div className="w-24 h-24 mb-4">
               {note.file_url.toLowerCase().endsWith('.pdf') ? (
@@ -161,10 +200,25 @@ export default function NoteCard({ note, isPurchased = false }: NoteCardProps) {
         
         {/* Action buttons */}
         <div className="mt-4 flex gap-2">
+          {/* Preview button - only show when there is a valid preview */}
+          {previewUrl && !previewError && !isPurchased && (
+            <button 
+              onClick={handleOpenPreview}
+              className="flex-1 flex items-center justify-center bg-gray-100 hover:bg-gray-200 text-gray-800 py-2 px-4 rounded-lg transition"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+              </svg>
+              Preview
+            </button>
+          )}
+          
+          {/* Download or Add to Cart button */}
           {isPurchased ? (
             <button 
               onClick={handleDownload}
-              className="w-full flex items-center justify-center bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-lg transition"
+              className="flex-1 flex items-center justify-center bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-lg transition"
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -175,7 +229,7 @@ export default function NoteCard({ note, isPurchased = false }: NoteCardProps) {
             <button 
               onClick={handleAddToCart}
               disabled={isAddingToCart}
-              className={`w-full flex items-center justify-center text-white py-2 px-4 rounded-lg transition ${
+              className={`flex-1 flex items-center justify-center text-white py-2 px-4 rounded-lg transition ${
                 isAddingToCart ? 'bg-blue-400' : 'bg-blue-600 hover:bg-blue-700'
               }`}
             >
@@ -197,6 +251,74 @@ export default function NoteCard({ note, isPurchased = false }: NoteCardProps) {
               )}
             </button>
           )}
+        </div>
+      </div>
+
+      {/* Preview Modal */}
+      {isPreviewModalOpen && previewUrl && (
+        <PreviewModal 
+          imageUrl={previewUrl}
+          title={note.title}
+          onClose={() => setIsPreviewModalOpen(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+// Create a simple modal component for previews
+function PreviewModal({ imageUrl, title, onClose }: { imageUrl: string, title: string, onClose: () => void }) {
+  // Close modal when Escape key is pressed
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyDown);
+    // Prevent body scrolling when modal is open
+    document.body.style.overflow = 'hidden';
+    
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = 'auto';
+    };
+  }, [onClose]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75" onClick={onClose}>
+      <div className="relative bg-white rounded-lg max-w-4xl max-h-[90vh] w-[90vw] overflow-hidden" onClick={e => e.stopPropagation()}>
+        {/* Header */}
+        <div className="px-4 py-3 border-b border-gray-200 flex justify-between items-center">
+          <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
+          <button 
+            className="text-gray-500 hover:text-gray-700"
+            onClick={onClose}
+          >
+            <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        
+        {/* Content */}
+        <div className="p-4 flex items-center justify-center overflow-auto" style={{ maxHeight: 'calc(90vh - 120px)' }}>
+          <img 
+            src={imageUrl} 
+            alt={title}
+            className="max-w-full max-h-full object-contain"
+          />
+        </div>
+        
+        {/* Footer */}
+        <div className="px-4 py-3 border-t border-gray-200 flex justify-end">
+          <button 
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+            onClick={onClose}
+          >
+            Close
+          </button>
         </div>
       </div>
     </div>
