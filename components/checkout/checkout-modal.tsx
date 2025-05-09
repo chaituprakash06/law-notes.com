@@ -4,6 +4,7 @@
 import { useState, useEffect } from 'react';
 import { EmbeddedCheckout, EmbeddedCheckoutProvider } from '@stripe/react-stripe-js';
 import { getStripePromise } from '@/lib/stripe-client';
+import { useAuth } from '@/lib/AuthContext';
 
 interface CheckoutModalProps {
   isOpen: boolean;
@@ -15,17 +16,27 @@ export default function CheckoutModal({ isOpen, onClose, cartItems }: CheckoutMo
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  // Get user from auth context
+  const { user } = useAuth();
 
   useEffect(() => {
     if (!isOpen) return;
 
     const fetchCheckoutSession = async () => {
       try {
+        // Check if user is authenticated
+        if (!user) {
+          throw new Error('Missing userId');
+        }
+
         setLoading(true);
         setError(null);
 
         // Prepare return URL with origin
         const returnUrl = `${window.location.origin}/checkout/return?session_id={CHECKOUT_SESSION_ID}`;
+
+        console.log('Creating checkout session with userId:', user.id);
 
         const response = await fetch('/api/embedded-checkout', {
           method: 'POST',
@@ -35,6 +46,7 @@ export default function CheckoutModal({ isOpen, onClose, cartItems }: CheckoutMo
           body: JSON.stringify({
             items: cartItems,
             returnUrl,
+            userId: user.id, // Include user ID in request
           }),
         });
 
@@ -54,7 +66,7 @@ export default function CheckoutModal({ isOpen, onClose, cartItems }: CheckoutMo
     };
 
     fetchCheckoutSession();
-  }, [isOpen, cartItems]);
+  }, [isOpen, cartItems, user]);
 
   const handleClose = () => {
     onClose();

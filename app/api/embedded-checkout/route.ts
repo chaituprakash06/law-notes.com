@@ -2,21 +2,29 @@
 import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
 
-// Format the return URL correctly
-const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
-const returnUrl = `${baseUrl}/checkout/return?session_id={CHECKOUT_SESSION_ID}`;
-
 export async function POST(request: Request) {
   try {
+    console.log('Received embedded checkout request');
+    
     // Initialize Stripe with your secret key
     const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
       apiVersion: '2025-04-30.basil', // Use the latest API version
     });
 
     // Parse the request body
-    const { items, returnUrl, userId } = await request.json();
+    const body = await request.json();
+    
+    // Log request body without sensitive info
+    const { items, returnUrl, userId } = body;
+    console.log('Request details:', {
+      itemCount: items?.length || 0,
+      hasReturnUrl: !!returnUrl,
+      hasUserId: !!userId,
+    });
 
+    // Validate required fields
     if (!items || !items.length) {
+      console.error('No items provided in checkout request');
       return NextResponse.json(
         { error: 'No items provided' },
         { status: 400 }
@@ -24,6 +32,7 @@ export async function POST(request: Request) {
     }
 
     if (!userId) {
+      console.error('Missing userId in checkout request');
       return NextResponse.json(
         { error: 'Missing userId' },
         { status: 400 }
@@ -45,7 +54,7 @@ export async function POST(request: Request) {
         currency: 'aud', // Adjust as needed
         product_data: {
           name: item.title,
-          description: item.description,
+          description: item.description || '',
         },
         unit_amount: Math.round(item.price * 100), // Convert to cents
       },
@@ -58,8 +67,8 @@ export async function POST(request: Request) {
       line_items: lineItems,
       mode: 'payment',
       ui_mode: 'embedded',
-      return_url: returnUrl,
-      // Add metadata here - crucial for your webhook
+      return_url: returnUrl || `${process.env.NEXT_PUBLIC_SITE_URL}/checkout/return?session_id={CHECKOUT_SESSION_ID}`,
+      // Make sure to include metadata
       metadata: {
         userId: userId,
         noteIds: noteIds,
@@ -68,10 +77,16 @@ export async function POST(request: Request) {
     });
 
     console.log('Embedded checkout session created:', {
-      clientSecret: session.client_secret,
       sessionId: session.id,
       hasMetadata: !!session.metadata,
-      metadata: session.metadata
+      metadata: JSON.stringify(session.metadata)
+    });
+
+    // Verify session has metadata by retrieving it again
+    const verifySession = await stripe.checkout.sessions.retrieve(session.id);
+    console.log('Verified session metadata:', {
+      userId: verifySession.metadata?.userId,
+      noteIds: verifySession.metadata?.noteIds,
     });
 
     return NextResponse.json({ clientSecret: session.client_secret });

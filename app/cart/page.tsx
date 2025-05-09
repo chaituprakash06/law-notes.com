@@ -14,10 +14,10 @@ export default function CartPage() {
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const router = useRouter();
   // Get user from auth context
-  const { user } = useAuth();
+  const { user, isLoading: isAuthLoading } = useAuth();
   
-  // Fallback user for testing when auth context is not available
-  const mockUser = { id: 'mock-user-id' };
+  // Remove mock user
+  // const mockUser = { id: 'mock-user-id' };
 
   useEffect(() => {
     // Initialize cart if it doesn't exist
@@ -48,13 +48,12 @@ export default function CartPage() {
   };
 
   const handleCheckout = () => {
-    // Use real user if available, otherwise use mock user for testing
-    // Remove this mock fallback in production
-    const currentUser = user || mockUser;
-    
-    if (!currentUser) {
+    // Check if user is authenticated
+    if (!user) {
       // Redirect to login if not authenticated
-      router.push('/login?redirect=cart');
+      setErrorMessage('Please log in to proceed with checkout');
+      localStorage.setItem('redirectAfterLogin', '/cart');
+      router.push('/login?redirect=/cart');
       return;
     }
 
@@ -177,22 +176,30 @@ export default function CartPage() {
                 <span>Total</span>
                 <span>${calculateCartTotal().toFixed(2)}</span>
               </div>
+              
+              {/* Add login notice for non-authenticated users */}
+              {!user && !isAuthLoading && (
+                <div className="mt-4 p-3 bg-blue-50 text-blue-800 rounded-md">
+                  <p>You'll need to log in to complete your purchase.</p>
+                </div>
+              )}
+              
               <button
                 onClick={handleCheckout}
-                disabled={isLoading}
+                disabled={isLoading || isAuthLoading}
                 className={`w-full mt-6 py-3 px-4 rounded-lg text-white ${
-                  isLoading ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'
+                  isLoading || isAuthLoading ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'
                 }`}
               >
-                {isLoading ? 'Processing...' : 'Proceed to Checkout'}
+                {isLoading ? 'Processing...' : isAuthLoading ? 'Loading...' : user ? 'Proceed to Checkout' : 'Log In to Checkout'}
               </button>
             </div>
           </div>
         )}
       </div>
 
-      {/* Embedded Checkout Modal */}
-      {(user || mockUser) && isCheckoutOpen && (
+      {/* Embedded Checkout Modal - only show for authenticated users */}
+      {user && isCheckoutOpen && (
         <CheckoutModal
           isOpen={isCheckoutOpen}
           onClose={closeCheckoutModal}

@@ -12,14 +12,33 @@ export async function middleware(request: NextRequest) {
   const { data: { session } } = await supabase.auth.getSession();
 
   // Define protected routes that require authentication
-  const protectedRoutes = ['/dashboard'];
+  const protectedRoutes = [
+    '/dashboard', 
+    '/checkout',
+    '/api/checkout',
+    '/api/embedded-checkout'
+  ];
+  
   const isProtectedRoute = protectedRoutes.some(route => 
     request.nextUrl.pathname.startsWith(route)
   );
 
   // Check for authentication
   if (isProtectedRoute && !session) {
-    // Redirect to login page with the return URL
+    // For API routes, return a JSON error response
+    if (request.nextUrl.pathname.startsWith('/api/')) {
+      return new NextResponse(
+        JSON.stringify({ error: 'Authentication required' }),
+        { 
+          status: 401,
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+    }
+    
+    // For normal routes, redirect to login page with the return URL
     const returnUrl = encodeURIComponent(request.nextUrl.pathname);
     const redirectUrl = new URL(`/login?redirect=${returnUrl}`, request.url);
     return NextResponse.redirect(redirectUrl);
@@ -39,11 +58,14 @@ export async function middleware(request: NextRequest) {
   return NextResponse.next();
 }
 
-// Configure which paths this middleware runs on
+// Update the matcher to include checkout routes
 export const config = {
   matcher: [
     // Protect these routes
     '/dashboard/:path*',
+    '/checkout/:path*',
+    '/api/checkout/:path*',
+    '/api/embedded-checkout',
     // Optional protection for these routes
     '/login',
     '/register',
