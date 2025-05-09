@@ -1,7 +1,7 @@
 // app/api/webhook/route.ts
 import { NextResponse } from 'next/server';
 import { headers } from 'next/headers';
-import { stripe } from '@/lib/stripe';
+import { stripe } from '@/lib/stripe-server'; // Import from stripe-server.ts
 import { createClient } from '@supabase/supabase-js';
 
 // Create a Supabase client with the service role key for admin access
