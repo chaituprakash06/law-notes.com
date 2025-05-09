@@ -1,9 +1,9 @@
-// Modified NoteCard.tsx with preview functionality
+// components/NoteCard.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
 import { CartItem, addToCart } from '@/lib/stripe';
-import { getStoragePublicUrl } from '@/lib/supabase';
+import { getSignedStorageUrl } from '@/lib/supabase';
 
 type Note = {
   id: string;
@@ -33,11 +33,15 @@ export default function NoteCard({ note, isPurchased = false }: NoteCardProps) {
       
       try {
         if (note.preview_url) {
-          // Get the public URL from Supabase - use the function from your existing code
-          const url = getStoragePublicUrl(note.preview_url, 'previews'); // Using 'previews' bucket as seen in image 2
-          setPreviewUrl(url);
+          // Use the signed URL approach with 1-month expiry
+          const url = await getSignedStorageUrl(note.preview_url);
+          
+          if (url) {
+            setPreviewUrl(url);
+          } else {
+            setPreviewError(true);
+          }
         } else {
-          // If no preview URL is set, set error to true to show fallback
           setPreviewError(true);
         }
       } catch (error) {
@@ -79,20 +83,29 @@ export default function NoteCard({ note, isPurchased = false }: NoteCardProps) {
     }, 500);
   };
   
-  const handleDownload = () => {
+  const handleDownload = async () => {
     if (!isPurchased) return;
     
-    // Get the file URL - use the 'notes' bucket based on your database structure
-    const fileUrl = getStoragePublicUrl(note.file_url, 'notes');
-    
-    // Create a temporary anchor element to trigger the download
-    const a = document.createElement('a');
-    a.href = fileUrl || "";
-    a.download = note.file_url.split('/').pop() || `${note.title.replace(/\s+/g, '_')}.docx`;
-    a.target = '_blank'; // Open in new tab
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+    try {
+      // Get the signed file URL for download (also with 1-month expiry)
+      const fileUrl = await getSignedStorageUrl(note.file_url);
+      
+      if (!fileUrl) {
+        console.error("Failed to generate download URL");
+        return;
+      }
+      
+      // Create a temporary anchor element to trigger the download
+      const a = document.createElement('a');
+      a.href = fileUrl;
+      a.download = note.file_url.split('/').pop() || `${note.title.replace(/\s+/g, '_')}.docx`;
+      a.target = '_blank'; // Open in new tab
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error("Error downloading file:", error);
+    }
   };
 
   const handlePreviewError = () => {
@@ -266,7 +279,7 @@ export default function NoteCard({ note, isPurchased = false }: NoteCardProps) {
   );
 }
 
-// Create a simple modal component for previews
+// Preview Modal Component
 function PreviewModal({ imageUrl, title, onClose }: { imageUrl: string, title: string, onClose: () => void }) {
   // Close modal when Escape key is pressed
   useEffect(() => {

@@ -153,3 +153,44 @@ export const getStoragePublicUrl = (path: string, bucket: string = 'law-notes') 
     return null;
   }
 };
+
+/**
+ * Generate a signed URL for Supabase Storage items with a 1-month expiry
+ * @param path The file path within the bucket
+ * @param bucket The storage bucket name, defaults to 'law-notes'
+ * @returns A signed URL with a 1-month expiration time, or null if there was an error
+ */
+export const getSignedStorageUrl = async (path: string, bucket: string = 'law-notes') => {
+  // Set expiry to 1 month (in seconds)
+  // 60 seconds * 60 minutes * 24 hours * 30 days = 2,592,000 seconds
+  const expiresIn = 60 * 60 * 24 * 30;
+  
+  // If path is already a full URL with a token, return it as is
+  if (path?.includes('token=')) {
+    return path;
+  }
+  
+  try {
+    // Handle empty or undefined path
+    if (!path) {
+      return null;
+    }
+    
+    // Remove leading slash if present for Supabase Storage
+    const storagePath = path.startsWith('/') ? path.substring(1) : path;
+    
+    const { data, error } = await supabase.storage
+      .from(bucket)
+      .createSignedUrl(storagePath, expiresIn);
+      
+    if (error) {
+      throw error;
+    }
+      
+    return data?.signedUrl || null;
+  } catch (error) {
+    console.error('Error getting signed URL:', error);
+    // If there was an error, return null
+    return null;
+  }
+};
