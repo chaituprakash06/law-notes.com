@@ -22,8 +22,9 @@ interface NoteCardProps {
 
 // Define the signed URL map with an index signature
 const signedUrlMap: Record<string, string> = {
-  'previews/company_image.png': 'https://zqdiwegblvrgyyfjjkfz.supabase.co/storage/v1/object/sign/law-notes/previews/company_image.png?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InN0b3JhZ2UtdXJsLXNpZ25pbmcta2V5X2I5YTdiYTUyLTc4MjQtNDZiOS1iZjJjLTI4MTdiMTJiZGZkNSJ9.eyJ1cmwiOiJsYXctbm90ZXMvcHJldmlld3MvY29tcGFueV9pbWFnZS5wbmciLCJpYXQiOjE3NDY4MTQwODgsImV4cCI6MTc0OTQwNjA4OH0.Vmd0GmXI0vhPd0usTepe1Ou0ZnlzyDUiF4uafF7GWNw',
-  // Add other mappings as needed
+  'previews/company_image.png': 'https://zqdiwegblvrgyyfjjkfz.supabase.co/storage/v1/object/sign/law-notes/previews/company_image.png?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InN0b3JhZ2UtdXJsLXNpZ25pbmcta2V5X2I5YTdiYTUyLTc4MjQtNDZiOS1iZjJjLTI4MTdiMTJiZGZkNSJ9.eyJ1cmwiOiJsYXctbm90ZXMvcHJldmlld3MvY29tcGFueV9pbWFnZS5wbmciLCJpYXQiOjE3NDY4MTQ1NTEsImV4cCI6MTc0OTQwNjU1MX0.f98LRAKYgChgRMxc8y_Me7eODrISjawg9G9Ggoi5s6g',
+  'previews/tax_image.png': 'https://zqdiwegblvrgyyfjjkfz.supabase.co/storage/v1/object/sign/law-notes/previews/tax_image.png?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InN0b3JhZ2UtdXJsLXNpZ25pbmcta2V5X2I5YTdiYTUyLTc4MjQtNDZiOS1iZjJjLTI4MTdiMTJiZGZkNSJ9.eyJ1cmwiOiJsYXctbm90ZXMvcHJldmlld3MvdGF4X2ltYWdlLnBuZyIsImlhdCI6MTc0NjgxNDUzNCwiZXhwIjoxNzQ5NDA2NTM0fQ.HKFbRVvVpJ979W3Sr7hc0s7aYrSXPqrpM1ceDW-5No8',
+  'previews/juris_law.png': 'https://zqdiwegblvrgyyfjjkfz.supabase.co/storage/v1/object/sign/law-notes/previews/juris_law.png?token=YOUR_JURIS_LAW_TOKEN_HERE'
 };
 
 export default function NoteCard({ note, isPurchased = false }: NoteCardProps) {
