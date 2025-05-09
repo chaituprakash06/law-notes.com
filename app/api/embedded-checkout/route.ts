@@ -2,6 +2,11 @@
 import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
 
+
+// Format the return URL correctly
+const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+const returnUrl = `${baseUrl}/checkout/return?session_id={CHECKOUT_SESSION_ID}`;
+
 export async function POST(request: Request) {
   try {
     // Initialize Stripe with your secret key
