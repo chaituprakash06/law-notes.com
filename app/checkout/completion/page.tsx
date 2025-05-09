@@ -4,7 +4,7 @@ import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Header from '@/components/Header';
-import { initCart } from '@/lib/stripe';
+import { initCart, clearCart } from '@/lib/stripe';
 
 type PaymentStatus = 'loading' | 'success' | 'failed';
 
@@ -38,19 +38,25 @@ function CheckoutContent() {
         }
         
         if (data.status === 'complete') {
-          // Clear cart on successful payment
-          if (typeof window !== 'undefined') {
-            window.cart = [];
-            window.dispatchEvent(new CustomEvent('cartUpdated'));
-          }
+          // Use the clearCart utility function instead
+          clearCart();
           
           setStatus('success');
           if (data.customer_email) {
             setEmail(data.customer_email);
           }
         } else {
+          // Enhanced error handling based on Stripe status
           setStatus('failed');
-          setErrorMessage('Payment was not completed successfully');
+          
+          // More specific error message based on status
+          if (data.status === 'expired') {
+            setErrorMessage('Your payment session has expired. Please try again.');
+          } else if (data.status === 'payment_intent.payment_failed') {
+            setErrorMessage('Your payment was declined. Please try again with a different payment method.');
+          } else {
+            setErrorMessage('Payment was not completed successfully');
+          }
         }
       } catch (error) {
         console.error('Error checking payment status:', error);

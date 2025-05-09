@@ -158,9 +158,9 @@ export const clearCart = (): void => {
 
 // Map note IDs to Stripe price IDs
 export const NOTE_STRIPE_PRICE_IDS: Record<string, string> = {
-  'tax-law-notes': 'price_1RMwA905kmxxE8ck0nTL5h7P', // Replace with your actual price ID
-  'jurisprudence-law-notes': 'price_1RMXJ205kmxxE8ckiODTh3PN', // Replace with your actual price ID
-  'company-law-notes': 'price_1RMw9W05kmxxE8ckY5YDsS6y' // Replace with your actual price ID
+  'tax-law-notes': 'price_1RMx7P05kmxxE8ckdOV8lO8m', // Replace with your actual price ID
+  'jurisprudence-law-notes': 'price_1RMx7905kmxxE8ckjReoA85p', // Replace with your actual price ID
+  'company-law-notes': 'price_1RMx5b05kmxxE8ckLQAb0sXI' // Replace with your actual price ID
 };
 
 // Map note IDs to actual note titles and prices (for display and local cart)
