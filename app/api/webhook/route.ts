@@ -1,7 +1,7 @@
 // app/api/webhook/route.ts
 import { NextResponse } from 'next/server';
 import { headers } from 'next/headers';
-import { stripe } from '@/lib/stripe-server'; // Import from stripe-server.ts
+import { stripe } from '@/lib/stripe-server';
 import { createClient } from '@supabase/supabase-js';
 
 // Create a Supabase client with the service role key for admin access
@@ -16,7 +16,9 @@ export async function POST(request: Request) {
   try {
     // Get request body as raw text for signature verification
     const body = await request.text();
-    const headersList = headers();
+    
+    // Get headers - updated to handle the Promise
+    const headersList = await headers();
     const signature = headersList.get('stripe-signature') as string;
     
     console.log('📝 Stripe signature header present:', !!signature); // Log if signature exists
