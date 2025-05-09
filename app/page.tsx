@@ -131,7 +131,7 @@ export default function Home() {
     <main className="min-h-screen bg-white">
       <Header />
       <div className="container mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold mb-8 text-center">Premium Law Notes</h1>
+        <h1 className="text-3xl font-bold mb-8 text-center">LSE Law Notes</h1>
         
         {isLoading ? (
           <div className="text-center py-12">
