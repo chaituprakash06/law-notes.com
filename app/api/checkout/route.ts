@@ -43,18 +43,33 @@ export async function POST(request: Request) {
       };
     });
 
+    // Extract note IDs for metadata
+    const noteIds = items.map((item: CartItem) => item.id).join(',');
+    
+    console.log('Creating checkout session with data:', {
+      userId,
+      noteIds,
+      itemCount: items.length
+    });
+
     // Create Stripe checkout session
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       line_items: lineItems,
       mode: 'payment',
-      success_url: `${process.env.NEXT_PUBLIC_SITE_URL}/checkout/completion?session_id={CHECKOUT_SESSION_ID}`,
+      success_url: `${process.env.NEXT_PUBLIC_SITE_URL}/checkout/return?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${process.env.NEXT_PUBLIC_SITE_URL}/cart?canceled=true`,
       metadata: {
-        userId,
-        noteIds: items.map((item: CartItem) => item.id).join(','),
+        userId: userId,
+        noteIds: noteIds,
       },
-      customer_email: items.length > 0 ? 'chaituprakash06@gmail.com' : undefined, // For testing with your email
+      customer_creation: 'always', // Always create a customer
+    });
+
+    console.log('Checkout session created:', {
+      sessionId: session.id,
+      hasMetadata: !!session.metadata,
+      metadata: session.metadata
     });
 
     return NextResponse.json({ sessionId: session.id });
