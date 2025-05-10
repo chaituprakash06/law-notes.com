@@ -66,18 +66,27 @@ export async function POST(request: Request) {
     
     console.log('Creating checkout session with userId:', userId);
     
-    // Format line items for Stripe
-    const lineItems = items.map((item: any) => ({
-      price_data: {
-        currency: 'aud',
-        product_data: {
-          name: item.title,
-          description: item.description || '',
+    // Format line items for Stripe - fix the description issue
+    const lineItems = items.map((item: any) => {
+      // Create the basic product data
+      const productData: any = {
+        name: item.title || 'Law Notes',
+      };
+      
+      // Only add description if it's not empty
+      if (item.description && typeof item.description === 'string' && item.description.trim() !== '') {
+        productData.description = item.description.trim();
+      }
+      
+      return {
+        price_data: {
+          currency: 'aud',
+          product_data: productData,
+          unit_amount: Math.round(item.price * 100), // Convert to cents
         },
-        unit_amount: Math.round(item.price * 100), // Convert to cents
-      },
-      quantity: item.quantity || 1,
-    }));
+        quantity: item.quantity || 1,
+      };
+    });
     
     // Create Stripe checkout session
     const session = await stripe.checkout.sessions.create({
