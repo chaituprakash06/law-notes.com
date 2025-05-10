@@ -1,20 +1,18 @@
-// app/login/page.tsx (or your login component)
+// app/login/page.tsx
 'use client';
 
-import { useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useState, Suspense } from 'react';
+import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 
-export default function LoginPage() {
+// Login form component that uses useSearchParams
+function LoginForm() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
-  const searchParams = useSearchParams();
   
-  const redirectPath = searchParams?.get('redirect') || '/dashboard';
-
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -51,8 +49,8 @@ export default function LoginPage() {
         localStorage.removeItem('redirectAfterLogin'); // Clear after use
         router.push(storedRedirect);
       } else {
-        // Otherwise use the URL param
-        router.push(redirectPath);
+        // Go to dashboard if no redirect
+        router.push('/dashboard');
       }
     } catch (err: any) {
       console.error('Login error:', err);
@@ -111,6 +109,36 @@ export default function LoginPage() {
           {loading ? 'Signing In...' : 'Sign In'}
         </button>
       </form>
+      
+      <div className="mt-6 text-center">
+        <p className="text-gray-600">
+          Don't have an account?{' '}
+          <a href="/register" className="text-blue-600 hover:underline">
+            Register
+          </a>
+        </p>
+      </div>
     </div>
+  );
+}
+
+// Loading fallback component
+function LoginLoadingFallback() {
+  return (
+    <div className="max-w-md mx-auto p-6 bg-white rounded-lg shadow-md mt-12">
+      <h1 className="text-2xl font-bold mb-6">Sign In</h1>
+      <div className="flex justify-center">
+        <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    </div>
+  );
+}
+
+// Main page component with Suspense boundary
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<LoginLoadingFallback />}>
+      <LoginForm />
+    </Suspense>
   );
 }
