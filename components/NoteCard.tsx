@@ -146,14 +146,20 @@ export default function NoteCard({ note, isPurchased = false }: NoteCardProps) {
     document.body.removeChild(a);
     
   } catch (error) {
-    console.error('Error downloading file:', error);
-    setDownloadError(true);
+  console.error('Error downloading file:', error);
+  setDownloadError(true);
+  
+  // Type check the error properly
+  if (error instanceof Error) {
     alert(`Failed to download file: ${error.message}`);
-  } finally {
-    setTimeout(() => {
-      setIsDownloading(false);
-    }, 800);
+  } else {
+    alert("Failed to download file. Please try again later.");
   }
+} finally {
+  setTimeout(() => {
+    setIsDownloading(false);
+  }, 800);
+}
 };
   const handlePreviewError = () => {
     setPreviewError(true);
