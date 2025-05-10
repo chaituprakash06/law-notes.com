@@ -1,4 +1,4 @@
-// Updated NoteCard.tsx with TypeScript fixes
+// Updated NoteCard.tsx to work with full URLs in the file_url column
 
 'use client';
 
@@ -27,12 +27,26 @@ const signedUrlMap: Record<string, string> = {
   'previews/juris_law.png': 'https://zqdiwegblvrgyyfjjkfz.supabase.co/storage/v1/object/sign/law-notes/previews/company_image.png?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InN0b3JhZ2UtdXJsLXNpZ25pbmcta2V5X2I5YTdiYTUyLTc4MjQtNDZiOS1iZjJjLTI4MTdiMTJiZGZkNSJ9.eyJ1cmwiOiJsYXctbm90ZXMvcHJldmlld3MvY29tcGFueV9pbWFnZS5wbmciLCJpYXQiOjE3NDY4MTQwODgsImV4cCI6MTc0OTQwNjA4OH0.Vmd0GmXI0vhPd0usTepe1Ou0ZnlzyDUiF4uafF7GWNw'
 };
 
+/// Map to store signed download URLs by ID
+const signedDownloadUrlMap: Record<string, string> = {
+  // Tax Law Notes (ID: 4d9fc245-ed05-404c-af40-a093bdd9257)
+  '4d9fc245-ed05-404c-af40-a093bdd9257': 'https://zqdiwegblvrgyyfjjkfz.supabase.co/storage/v1/object/sign/law-notes/notes/company_law.docx?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InN0b3JhZ2UtdXJsLXNpZ25pbmcta2V5X2I5YTdiYTUyLTc4MjQtNDZiOS1iZjJjLTI4MTdiMTJiZGZkNSJ9.eyJ1cmwiOiJsYXctbm90ZXMvbm90ZXMvY29tcGFueV9sYXcuZG9jeCIsImlhdCI6MTc0NjgzODk2MiwiZXhwIjoxNzQ5NDMwOTYyfQ.TEAs6yqOnDLrUQTIzH4fd5LQ7o_6JlUKfBAtzFe0HWM',
+  
+  // Jurisprudence Law Notes (ID: 6f5748c7-1f83-42ba-baa3-a09e3ef8a083)
+  '6f5748c7-1f83-42ba-baa3-a09e3ef8a083': 'https://zqdiwegblvrgyyfjjkfz.supabase.co/storage/v1/object/sign/law-notes/notes/juris_law.docx?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InN0b3JhZ2UtdXJsLXNpZ25pbmcta2V5X2I5YTdiYTUyLTc4MjQtNDZiOS1iZjJjLTI4MTdiMTJiZGZkNSJ9.eyJ1cmwiOiJsYXctbm90ZXMvbm90ZXMvanVyaXNfbGF3LmRvY3giLCJpYXQiOjE3NDY4Mzg3MDgsImV4cCI6MTc0OTQzMDcwOH0.6upB-ZRlMLJVqEfqZJEwSZnXir1Q2ecMMOtQ2HdiRJw',
+  
+  // Company Law Notes (ID: 78a10da9-d208-4e5e-914a-09d97cb2892)
+  '78a10da9-d208-4e5e-914a-09d97cb2892': 'https://zqdiwegblvrgyyfjjkfz.supabase.co/storage/v1/object/sign/law-notes/notes/company_law.docx?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InN0b3JhZ2UtdXJsLXNpZ25pbmcta2V5X2I5YTdiYTUyLTc4MjQtNDZiOS1iZjJjLTI4MTdiMTJiZGZkNSJ9.eyJ1cmwiOiJsYXctbm90ZXMvbm90ZXMvY29tcGFueV9sYXcuZG9jeCIsImlhdCI6MTc0NjgzODk2MiwiZXhwIjoxNzQ5NDMwOTYyfQ.TEAs6yqOnDLrUQTIzH4fd5LQ7o_6JlUKfBAtzFe0HWM'
+};
+
 export default function NoteCard({ note, isPurchased = false }: NoteCardProps) {
   const [isAddingToCart, setIsAddingToCart] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isPreviewLoading, setIsPreviewLoading] = useState(true);
   const [previewError, setPreviewError] = useState(false);
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [downloadError, setDownloadError] = useState(false);
 
   useEffect(() => {
     const loadPreview = () => {
@@ -68,12 +82,12 @@ export default function NoteCard({ note, isPurchased = false }: NoteCardProps) {
     loadPreview();
   }, [note.preview_url, note.signed_preview_url]);
 
-  // Get file type label
+  // Get file type label based on file_url
   const getFileTypeLabel = () => {
     const fileUrl = note.file_url.toLowerCase();
-    if (fileUrl.endsWith('.pdf')) {
+    if (fileUrl.includes('.pdf')) {
       return 'PDF Document';
-    } else if (fileUrl.endsWith('.docx') || fileUrl.endsWith('.doc')) {
+    } else if (fileUrl.includes('.docx') || fileUrl.includes('.doc')) {
       return 'Word Document';
     } else {
       return 'Document';
@@ -97,14 +111,50 @@ export default function NoteCard({ note, isPurchased = false }: NoteCardProps) {
   };
   
   const handleDownload = () => {
-    if (!isPurchased) return;
+  if (!isPurchased) return;
+  
+  setIsDownloading(true);
+  setDownloadError(false);
+  
+  try {
+    let downloadUrl;
+    let filename;
     
-    // For file downloads, you can also use manually generated signed URLs
-    // or implement a server endpoint that generates them on-demand
+    // Determine which document to download based on the note title or ID
+    if (note.title.toLowerCase().includes('tax')) {
+      downloadUrl = 'https://zqdiwegblvrgyyfjjkfz.supabase.co/storage/v1/object/sign/law-notes/notes/tax_law.pdf?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InN0b3JhZ2UtdXJsLXNpZ25pbmcta2V5X2I5YTdiYTUyLTc4MjQtNDZiOS1iZjJjLTI4MTdiMTJiZGZkNSJ9.eyJ1cmwiOiJsYXctbm90ZXMvbm90ZXMvdGF4X2xhdy5wZGYiLCJpYXQiOjE3NDY4Mzg1NTcsImV4cCI6MTc0OTQzMDU1N30.Vm2OTClwZE2NIEzR2Up40-7-CkuaNvC9___8SvmjxCM';
+      filename = 'Tax Law Notes.pdf';
+    } else if (note.title.toLowerCase().includes('juris')) {
+      downloadUrl = 'https://zqdiwegblvrgyyfjjkfz.supabase.co/storage/v1/object/sign/law-notes/notes/juris_law.docx?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InN0b3JhZ2UtdXJsLXNpZ25pbmcta2V5X2I5YTdiYTUyLTc4MjQtNDZiOS1iZjJjLTI4MTdiMTJiZGZkNSJ9.eyJ1cmwiOiJsYXctbm90ZXMvbm90ZXMvanVyaXNfbGF3LmRvY3giLCJpYXQiOjE3NDY4Mzg3MDgsImV4cCI6MTc0OTQzMDcwOH0.6upB-ZRlMLJVqEfqZJEwSZnXir1Q2ecMMOtQ2HdiRJw';
+      filename = 'Jurisprudence Law Notes.docx';
+    } else if (note.title.toLowerCase().includes('company')) {
+      downloadUrl = 'https://zqdiwegblvrgyyfjjkfz.supabase.co/storage/v1/object/sign/law-notes/notes/company_law.docx?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InN0b3JhZ2UtdXJsLXNpZ25pbmcta2V5X2I5YTdiYTUyLTc4MjQtNDZiOS1iZjJjLTI4MTdiMTJiZGZkNSJ9.eyJ1cmwiOiJsYXctbm90ZXMvbm90ZXMvY29tcGFueV9sYXcuZG9jeCIsImlhdCI6MTc0NjgzODk2MiwiZXhwIjoxNzQ5NDMwOTYyfQ.TEAs6yqOnDLrUQTIzH4fd5LQ7o_6JlUKfBAtzFe0HWM';
+      filename = 'Company Law Notes.docx';
+    } else {
+      throw new Error(`Unrecognized note type: ${note.title}`);
+    }
     
-    alert("Download functionality will be implemented with manually signed URLs");
-  };
-
+    // Add cache-busting parameter
+    downloadUrl += (downloadUrl.includes('?') ? '&' : '?') + '_t=' + Date.now();
+    
+    // Create download link
+    const a = document.createElement('a');
+    a.href = downloadUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    
+  } catch (error) {
+    console.error('Error downloading file:', error);
+    setDownloadError(true);
+    alert(`Failed to download file: ${error.message}`);
+  } finally {
+    setTimeout(() => {
+      setIsDownloading(false);
+    }, 800);
+  }
+};
   const handlePreviewError = () => {
     setPreviewError(true);
   };
@@ -162,7 +212,7 @@ export default function NoteCard({ note, isPurchased = false }: NoteCardProps) {
         {(!previewUrl || previewError) && !isPreviewLoading && (
           <div className="h-full w-full flex flex-col items-center justify-center p-4">
             <div className="w-24 h-24 mb-4">
-              {note.file_url.toLowerCase().endsWith('.pdf') ? (
+              {note.file_url.toLowerCase().includes('.pdf') ? (
                 <svg xmlns="http://www.w3.org/2000/svg" className="w-full h-full text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
@@ -195,7 +245,7 @@ export default function NoteCard({ note, isPurchased = false }: NoteCardProps) {
         
         {/* File type indicator */}
         <div className="mt-2 flex items-center text-sm text-gray-500">
-          {note.file_url.toLowerCase().endsWith('.pdf') ? (
+          {note.file_url.toLowerCase().includes('.pdf') ? (
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
@@ -227,12 +277,27 @@ export default function NoteCard({ note, isPurchased = false }: NoteCardProps) {
           {isPurchased ? (
             <button 
               onClick={handleDownload}
-              className="flex-1 flex items-center justify-center bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-lg transition"
+              disabled={isDownloading}
+              className={`flex-1 flex items-center justify-center ${
+                isDownloading ? 'bg-green-500' : 'bg-green-600 hover:bg-green-700'
+              } text-white py-2 px-4 rounded-lg transition`}
             >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-              </svg>
-              Download
+              {isDownloading ? (
+                <>
+                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Downloading...
+                </>
+              ) : (
+                <>
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                  </svg>
+                  Download
+                </>
+              )}
             </button>
           ) : (
             <button 
