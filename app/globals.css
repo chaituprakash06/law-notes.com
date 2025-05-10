@@ -43,3 +43,26 @@ body, h1, h2, h3, h4, h5, h6, p, span, a, button {
   font-weight: 700;
   color: #1a56db; /* A strong blue that stands out */
 }
+
+/* Add this to your globals.css */
+.embedded-checkout-container {
+  position: relative;
+  min-height: 300px;
+  width: 100%;
+}
+
+.embedded-checkout {
+  position: relative;
+  width: 100%;
+  min-height: 450px;
+  /* This line helps with iOS scroll issues */
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Fix for Stripe embedded checkout specific issues */
+@media (max-width: 600px) {
+  iframe.StripeEmbeddedCheckout {
+    min-height: 500px !important;
+    width: 100% !important;
+  }
+}
