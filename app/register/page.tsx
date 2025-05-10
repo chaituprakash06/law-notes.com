@@ -39,7 +39,7 @@ export default function RegisterPage() {
       if (data.user && data.session) {
         // If auto-confirm is enabled and session is available
         await refreshUser();
-        router.push('/dashboard');
+        router.push('/');
       } else {
         // If email confirmation is required
         setConfirmationMessage(
