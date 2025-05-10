@@ -199,7 +199,7 @@ export default function CartPage() {
       </div>
 
       {/* Embedded Checkout Modal - only show for authenticated users */}
-      {user && isCheckoutOpen && (
+      {isCheckoutOpen && (
         <CheckoutModal
           isOpen={isCheckoutOpen}
           onClose={closeCheckoutModal}

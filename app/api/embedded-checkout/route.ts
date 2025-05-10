@@ -1,6 +1,13 @@
 // app/api/embedded-checkout/route.ts
 import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
+import { createClient } from '@supabase/supabase-js';
+
+// Create a Supabase client
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+  process.env.SUPABASE_SERVICE_ROLE_KEY || ''
+);
 
 export async function POST(request: Request) {
   try {
@@ -13,14 +20,7 @@ export async function POST(request: Request) {
 
     // Parse the request body
     const body = await request.json();
-    
-    // Log request body without sensitive info
     const { items, returnUrl, userId } = body;
-    console.log('Request details:', {
-      itemCount: items?.length || 0,
-      hasReturnUrl: !!returnUrl,
-      hasUserId: !!userId,
-    });
 
     // Validate required fields
     if (!items || !items.length) {
@@ -36,6 +36,21 @@ export async function POST(request: Request) {
       return NextResponse.json(
         { error: 'Missing userId' },
         { status: 400 }
+      );
+    }
+
+    // Verify the user exists in the database
+    const { data: userData, error: userError } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('id', userId)
+      .single();
+
+    if (userError || !userData) {
+      console.error('User not found in database:', { userId, error: userError });
+      return NextResponse.json(
+        { error: 'User not found' },
+        { status: 404 }
       );
     }
 
@@ -70,8 +85,8 @@ export async function POST(request: Request) {
       return_url: returnUrl || `${process.env.NEXT_PUBLIC_SITE_URL}/checkout/return?session_id={CHECKOUT_SESSION_ID}`,
       // Make sure to include metadata
       metadata: {
-        userId: userId,
-        noteIds: noteIds,
+        userId,
+        noteIds,
       },
       customer_creation: 'always', // Always create a customer
     });
@@ -80,13 +95,6 @@ export async function POST(request: Request) {
       sessionId: session.id,
       hasMetadata: !!session.metadata,
       metadata: JSON.stringify(session.metadata)
-    });
-
-    // Verify session has metadata by retrieving it again
-    const verifySession = await stripe.checkout.sessions.retrieve(session.id);
-    console.log('Verified session metadata:', {
-      userId: verifySession.metadata?.userId,
-      noteIds: verifySession.metadata?.noteIds,
     });
 
     return NextResponse.json({ clientSecret: session.client_secret });

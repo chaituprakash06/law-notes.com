@@ -1,42 +1,44 @@
-// checkout-modal.tsx
+// checkout-modal.tsx (updated)
 'use client';
 
 import { useState, useEffect } from 'react';
 import { EmbeddedCheckout, EmbeddedCheckoutProvider } from '@stripe/react-stripe-js';
 import { getStripePromise } from '@/lib/stripe-client';
 import { useAuth } from '@/lib/AuthContext';
+import { useRouter } from 'next/navigation';
 
 interface CheckoutModalProps {
   isOpen: boolean;
   onClose: () => void;
-  cartItems: any[]; // Replace with your actual cart item type
+  cartItems: any[];
 }
 
 export default function CheckoutModal({ isOpen, onClose, cartItems }: CheckoutModalProps) {
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
-  // Get user from auth context
   const { user } = useAuth();
+  const router = useRouter();
 
   useEffect(() => {
     if (!isOpen) return;
 
+    // Check authentication first
+    if (!user) {
+      setError('Authentication required');
+      setLoading(false);
+      return;
+    }
+
     const fetchCheckoutSession = async () => {
       try {
-        // Check if user is authenticated
-        if (!user) {
-          throw new Error('Missing userId');
-        }
-
         setLoading(true);
         setError(null);
 
+        console.log('Creating checkout session for user:', user.id);
+
         // Prepare return URL with origin
         const returnUrl = `${window.location.origin}/checkout/return?session_id={CHECKOUT_SESSION_ID}`;
-
-        console.log('Creating checkout session with userId:', user.id);
 
         const response = await fetch('/api/embedded-checkout', {
           method: 'POST',
@@ -46,7 +48,7 @@ export default function CheckoutModal({ isOpen, onClose, cartItems }: CheckoutMo
           body: JSON.stringify({
             items: cartItems,
             returnUrl,
-            userId: user.id, // Include user ID in request
+            userId: user.id
           }),
         });
 
@@ -67,6 +69,12 @@ export default function CheckoutModal({ isOpen, onClose, cartItems }: CheckoutMo
 
     fetchCheckoutSession();
   }, [isOpen, cartItems, user]);
+
+  const handleRedirectToLogin = () => {
+    localStorage.setItem('redirectAfterLogin', '/cart');
+    router.push('/login?redirect=/cart');
+    onClose();
+  };
 
   const handleClose = () => {
     onClose();
@@ -94,12 +102,21 @@ export default function CheckoutModal({ isOpen, onClose, cartItems }: CheckoutMo
         {error && (
           <div className="p-4 mb-4 bg-red-100 text-red-700 rounded-md">
             <p>{error}</p>
-            <button 
-              onClick={handleClose}
-              className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-            >
-              Return to Cart
-            </button>
+            {error === 'Authentication required' ? (
+              <button 
+                onClick={handleRedirectToLogin}
+                className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+              >
+                Sign In
+              </button>
+            ) : (
+              <button 
+                onClick={handleClose}
+                className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+              >
+                Return to Cart
+              </button>
+            )}
           </div>
         )}
 

@@ -1,3 +1,4 @@
+// middleware.ts
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
@@ -12,21 +13,21 @@ export async function middleware(request: NextRequest) {
   const { data: { session } } = await supabase.auth.getSession();
 
   // Define protected routes that require authentication
-  const protectedRoutes = [
-    '/dashboard', 
-    '/checkout',
-    '/api/checkout',
-    '/api/embedded-checkout'
-  ];
+  const protectedRoutes = ['/dashboard', '/checkout'];
+  const protectedApiRoutes = ['/api/checkout', '/api/embedded-checkout'];
   
   const isProtectedRoute = protectedRoutes.some(route => 
     request.nextUrl.pathname.startsWith(route)
   );
+  
+  const isProtectedApiRoute = protectedApiRoutes.some(route => 
+    request.nextUrl.pathname.startsWith(route)
+  );
 
   // Check for authentication
-  if (isProtectedRoute && !session) {
+  if ((isProtectedRoute || isProtectedApiRoute) && !session) {
     // For API routes, return a JSON error response
-    if (request.nextUrl.pathname.startsWith('/api/')) {
+    if (isProtectedApiRoute) {
       return new NextResponse(
         JSON.stringify({ error: 'Authentication required' }),
         { 
@@ -58,7 +59,7 @@ export async function middleware(request: NextRequest) {
   return NextResponse.next();
 }
 
-// Update the matcher to include checkout routes
+// Configure which paths this middleware runs on
 export const config = {
   matcher: [
     // Protect these routes
