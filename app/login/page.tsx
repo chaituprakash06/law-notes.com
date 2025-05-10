@@ -50,7 +50,7 @@ function LoginForm() {
         router.push(storedRedirect);
       } else {
         // Go to dashboard if no redirect
-        router.push('/dashboard');
+        router.push('/');
       }
     } catch (err: any) {
       console.error('Login error:', err);
