@@ -32,12 +32,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw error;
       }
       
-      if (data.session) {
+      if (data?.session) {
         setSession(data.session);
         setUser(data.session.user);
+        console.log('User refreshed:', data.session.user.id);
       } else {
         setSession(null);
         setUser(null);
+        console.log('No session during refresh');
       }
     } catch (error) {
       console.error('Error refreshing user:', error);
@@ -48,7 +50,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // Improved sign out function that handles redirection
+  // Sign out function
   const signOut = async () => {
     try {
       setIsLoading(true);
@@ -74,19 +76,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         setIsLoading(true);
         
-        // Check for existing session
+        // Get the current session
         const { data, error } = await supabase.auth.getSession();
         
         if (error) {
           throw error;
         }
         
-        if (data.session) {
+        if (data?.session) {
           setSession(data.session);
           setUser(data.session.user);
-          console.log('User authenticated:', data.session.user.id);
+          console.log('Initial auth state - User authenticated:', data.session.user.id);
         } else {
-          console.log('No active session found');
+          console.log('Initial auth state - No active session');
         }
       } catch (error) {
         console.error('Auth initialization error:', error);
@@ -106,9 +108,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
           setSession(newSession);
           setUser(newSession?.user || null);
+          console.log('User signed in:', newSession?.user?.id);
         } else if (event === 'SIGNED_OUT') {
           setSession(null);
           setUser(null);
+          console.log('User signed out');
         }
       }
     );

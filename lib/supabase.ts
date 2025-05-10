@@ -1,11 +1,18 @@
-import { createClient, SupabaseClient, User } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 // Replace these with your Supabase project URL and anon key
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
-// Create a single supabase client for interacting with your database
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Create Supabase client with persistent sessions enabled
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    persistSession: true, // Enable persistent sessions
+    autoRefreshToken: true, // Automatically refresh token
+    detectSessionInUrl: true, // Detect session in URL for OAuth
+    storageKey: 'sb-auth-token', // Specify storage key
+  },
+});
 
 // Types for user profiles in Supabase
 export type UserProfile = {
