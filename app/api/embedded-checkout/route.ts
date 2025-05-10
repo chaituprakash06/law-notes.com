@@ -1,13 +1,8 @@
 // app/api/embedded-checkout/route.ts
 import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
+import { cookies } from 'next/headers';
 import { createClient } from '@supabase/supabase-js';
-
-// Create a Supabase client
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-  process.env.SUPABASE_SERVICE_ROLE_KEY || ''
-);
 
 export async function POST(request: Request) {
   try {
@@ -17,11 +12,30 @@ export async function POST(request: Request) {
     const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
       apiVersion: '2025-04-30.basil', // Use the latest API version
     });
-
+    
+    // Create a Supabase client to verify the session
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+    const supabase = createClient(supabaseUrl, supabaseAnonKey);
+    
+    // Check authentication first
+    const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+    
+    if (sessionError || !sessionData.session) {
+      console.error('No valid session:', sessionError?.message || 'Session not found');
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      );
+    }
+    
+    // Get the authenticated user ID
+    const authenticatedUserId = sessionData.session.user.id;
+    
     // Parse the request body
     const body = await request.json();
     const { items, returnUrl, userId } = body;
-
+    
     // Validate required fields
     if (!items || !items.length) {
       console.error('No items provided in checkout request');
@@ -30,39 +44,24 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
-
-    if (!userId) {
-      console.error('Missing userId in checkout request');
+    
+    // Ensure the userId matches the authenticated user
+    if (userId && userId !== authenticatedUserId) {
+      console.error('User ID mismatch:', { requestUserId: userId, sessionUserId: authenticatedUserId });
       return NextResponse.json(
-        { error: 'Missing userId' },
-        { status: 400 }
+        { error: 'User ID mismatch' },
+        { status: 403 }
       );
     }
-
-    // Verify the user exists in the database
-    const { data: userData, error: userError } = await supabase
-      .from('profiles')
-      .select('id')
-      .eq('id', userId)
-      .single();
-
-    if (userError || !userData) {
-      console.error('User not found in database:', { userId, error: userError });
-      return NextResponse.json(
-        { error: 'User not found' },
-        { status: 404 }
-      );
-    }
-
+    
+    // Use the authenticated user ID for the checkout session
+    const userIdForCheckout = authenticatedUserId;
+    
     // Extract note IDs for metadata
     const noteIds = items.map((item: any) => item.id).join(',');
-
-    console.log('Creating embedded checkout session with data:', {
-      userId,
-      noteIds,
-      itemCount: items.length
-    });
-
+    
+    console.log('Creating checkout with authenticated userId:', userIdForCheckout);
+    
     // Format line items for Stripe
     const lineItems = items.map((item: any) => ({
       price_data: {
@@ -75,7 +74,7 @@ export async function POST(request: Request) {
       },
       quantity: item.quantity || 1,
     }));
-
+    
     // Create a Checkout Session with the embedded UI mode
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
@@ -83,20 +82,22 @@ export async function POST(request: Request) {
       mode: 'payment',
       ui_mode: 'embedded',
       return_url: returnUrl || `${process.env.NEXT_PUBLIC_SITE_URL}/checkout/return?session_id={CHECKOUT_SESSION_ID}`,
-      // Make sure to include metadata
+      // Make sure to include metadata with the authenticated user ID
       metadata: {
-        userId,
+        userId: userIdForCheckout,
         noteIds,
       },
       customer_creation: 'always', // Always create a customer
     });
-
-    console.log('Embedded checkout session created:', {
+    
+    console.log('Checkout session created with metadata:', {
       sessionId: session.id,
-      hasMetadata: !!session.metadata,
-      metadata: JSON.stringify(session.metadata)
+      metadata: {
+        userId: session.metadata?.userId,
+        noteIds: session.metadata?.noteIds,
+      }
     });
-
+    
     return NextResponse.json({ clientSecret: session.client_secret });
   } catch (error: any) {
     console.error('Stripe checkout error:', error);

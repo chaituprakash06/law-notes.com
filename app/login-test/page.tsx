@@ -11,6 +11,7 @@ export default function LoginTestPage() {
   const [loading, setLoading] = useState(true);
   const [authState, setAuthState] = useState<any>({});
   const [loginError, setLoginError] = useState<string | null>(null);
+  const [cookieInfo, setCookieInfo] = useState<any>(null);
 
   // Check current auth state on load
   useEffect(() => {
@@ -47,6 +48,21 @@ export default function LoginTestPage() {
     };
     
     checkAuth();
+    
+    // Check cookies (browser-only)
+    if (typeof window !== 'undefined') {
+      const cookies = document.cookie.split(';').reduce((acc, cookie) => {
+        const [key, value] = cookie.trim().split('=');
+        acc[key] = value;
+        return acc;
+      }, {} as Record<string, string>);
+      
+      setCookieInfo({
+        hasSbAccessToken: !!cookies['sb-access-token'],
+        hasSbRefreshToken: !!cookies['sb-refresh-token'],
+        allCookieKeys: Object.keys(cookies),
+      });
+    }
   }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -97,22 +113,6 @@ export default function LoginTestPage() {
     }
   };
 
-  const checkCookies = () => {
-    // Check what cookies are available
-    const cookies = document.cookie.split(';').reduce((acc, cookie) => {
-      const [key, value] = cookie.trim().split('=');
-      acc[key] = value;
-      return acc;
-    }, {} as Record<string, string>);
-    
-    // Display cookie status
-    return {
-      hasSbAccessToken: !!cookies['sb-access-token'],
-      hasSbRefreshToken: !!cookies['sb-refresh-token'],
-      allCookieKeys: Object.keys(cookies),
-    };
-  };
-
   return (
     <div className="max-w-3xl mx-auto p-6 bg-white rounded-lg shadow-md mt-12">
       <h1 className="text-2xl font-bold mb-6">Auth Test Page</h1>
@@ -123,10 +123,14 @@ export default function LoginTestPage() {
           {JSON.stringify(authState, null, 2)}
         </pre>
         
-        <h2 className="text-lg font-semibold mt-4 mb-2">Cookie Status:</h2>
-        <pre className="bg-gray-100 p-4 rounded overflow-auto">
-          {JSON.stringify(checkCookies(), null, 2)}
-        </pre>
+        {cookieInfo && (
+          <>
+            <h2 className="text-lg font-semibold mt-4 mb-2">Cookie Status:</h2>
+            <pre className="bg-gray-100 p-4 rounded overflow-auto">
+              {JSON.stringify(cookieInfo, null, 2)}
+            </pre>
+          </>
+        )}
       </div>
       
       {user ? (

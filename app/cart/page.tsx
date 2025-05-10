@@ -47,26 +47,31 @@ export default function CartPage() {
     removeFromCart(id);
   };
 
-  const handleCheckout = () => {
-    // Check if user is authenticated
-    if (!user) {
-      // Redirect to login if not authenticated
-      setErrorMessage('Please log in to proceed with checkout');
+  const handleCheckout = async () => {
+  setIsLoading(true);
+  setErrorMessage(null);
+  
+  try {
+    // Check authentication status first
+    const authResponse = await fetch('/api/auth/status');
+    
+    if (!authResponse.ok) {
+      // Not authenticated, redirect to login
       localStorage.setItem('redirectAfterLogin', '/cart');
-      router.push('/login?redirect=/cart');
+      router.push('/login');
+      setErrorMessage('Please log in to proceed with checkout');
       return;
     }
-
-    setIsLoading(true);
-    setErrorMessage(null);
     
-    // Small delay to show loading state
-    setTimeout(() => {
-      setIsLoading(false);
-      // Open checkout modal
-      setIsCheckoutOpen(true);
-    }, 500);
-  };
+    // User is authenticated, proceed to checkout
+    setIsCheckoutOpen(true);
+  } catch (error) {
+    console.error('Error checking auth:', error);
+    setErrorMessage('Authentication check failed. Please try again.');
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   const closeCheckoutModal = () => {
     setIsCheckoutOpen(false);
