@@ -211,7 +211,7 @@ function CheckoutContent() {
 
       <div className="flex flex-col sm:flex-row justify-center gap-4">
         <Link 
-          href="/dashboard"
+          href="/"
           className="bg-blue-600 hover:bg-blue-700 text-white py-3 px-6 rounded-lg"
         >
           Go to My Dashboard
