@@ -1,10 +1,11 @@
+// app/cart/page.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Header from '@/components/Header';
 import { getCart, updateCartItemQuantity, removeFromCart, calculateCartTotal, initCart } from '@/lib/stripe';
-import { useAuth } from '@/lib/AuthContext';
+import { checkAuthClientSide } from '@/lib/auth-client';
 import CheckoutModal from '@/components/checkout/checkout-modal';
 
 export default function CartPage() {
@@ -13,11 +14,6 @@ export default function CartPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const router = useRouter();
-  // Get user from auth context
-  const { user, isLoading: isAuthLoading } = useAuth();
-  
-  // Remove mock user
-  // const mockUser = { id: 'mock-user-id' };
 
   useEffect(() => {
     // Initialize cart if it doesn't exist
@@ -48,30 +44,32 @@ export default function CartPage() {
   };
 
   const handleCheckout = async () => {
-  setIsLoading(true);
-  setErrorMessage(null);
-  
-  try {
-    // Check auth directly on the client side
-    const authStatus = await checkAuthClientSide();
+    setIsLoading(true);
+    setErrorMessage(null);
     
-    if (!authStatus.authenticated) {
-      // Not authenticated, redirect to login
-      localStorage.setItem('redirectAfterLogin', '/cart');
-      router.push('/login');
-      setErrorMessage('Please log in to proceed with checkout');
-      return;
+    try {
+      // Check auth directly on the client side
+      const authStatus = await checkAuthClientSide();
+      
+      if (!authStatus.authenticated) {
+        // Not authenticated, redirect to login
+        localStorage.setItem('redirectAfterLogin', '/cart');
+        router.push('/login');
+        setErrorMessage('Please log in to proceed with checkout');
+        return;
+      }
+      
+      console.log('User authenticated:', authStatus.userId);
+      
+      // User is authenticated, proceed to checkout
+      setIsCheckoutOpen(true);
+    } catch (error) {
+      console.error('Error checking auth:', error);
+      setErrorMessage('Authentication check failed. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
-    
-    // User is authenticated, proceed to checkout
-    setIsCheckoutOpen(true);
-  } catch (error) {
-    console.error('Error checking auth:', error);
-    setErrorMessage('Authentication check failed. Please try again.');
-  } finally {
-    setIsLoading(false);
-  }
-};
+  };
 
   const closeCheckoutModal = () => {
     setIsCheckoutOpen(false);
@@ -181,29 +179,23 @@ export default function CartPage() {
                 <span>Total</span>
                 <span>${calculateCartTotal().toFixed(2)}</span>
               </div>
-              
-              {/* Add login notice for non-authenticated users */}
-              {!user && !isAuthLoading && (
-                <div className="mt-4 p-3 bg-blue-50 text-blue-800 rounded-md">
-                  <p>You'll need to log in to complete your purchase.</p>
-                </div>
-              )}
-              
               <button
                 onClick={handleCheckout}
-                disabled={isLoading || isAuthLoading}
+                disabled={isLoading || cartItems.length === 0}
                 className={`w-full mt-6 py-3 px-4 rounded-lg text-white ${
-                  isLoading || isAuthLoading ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'
+                  isLoading || cartItems.length === 0 
+                    ? 'bg-blue-400 cursor-not-allowed' 
+                    : 'bg-blue-600 hover:bg-blue-700'
                 }`}
               >
-                {isLoading ? 'Processing...' : isAuthLoading ? 'Loading...' : user ? 'Proceed to Checkout' : 'Log In to Checkout'}
+                {isLoading ? 'Processing...' : 'Proceed to Checkout'}
               </button>
             </div>
           </div>
         )}
       </div>
 
-      {/* Embedded Checkout Modal - only show for authenticated users */}
+      {/* Checkout Modal - only shown when isCheckoutOpen is true */}
       {isCheckoutOpen && (
         <CheckoutModal
           isOpen={isCheckoutOpen}

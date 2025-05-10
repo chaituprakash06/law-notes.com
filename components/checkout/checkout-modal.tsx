@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 import { EmbeddedCheckout, EmbeddedCheckoutProvider } from '@stripe/react-stripe-js';
 import { getStripePromise } from '@/lib/stripe-client';
 import { useRouter } from 'next/navigation';
-import { checkAuthClientSide, refreshSession } from '@/lib/auth-client';
+import { checkAuthClientSide } from '@/lib/auth-client';
 
 interface CheckoutModalProps {
   isOpen: boolean;
@@ -26,9 +26,6 @@ export default function CheckoutModal({ isOpen, onClose, cartItems }: CheckoutMo
       try {
         setLoading(true);
         setError(null);
-        
-        // First try to refresh the session
-        await refreshSession();
         
         // Check auth status client-side
         const authStatus = await checkAuthClientSide();
@@ -54,9 +51,7 @@ export default function CheckoutModal({ isOpen, onClose, cartItems }: CheckoutMo
           body: JSON.stringify({
             items: cartItems,
             returnUrl,
-            userId: authStatus.userId,
-            // Include auth token from localStorage to help with server-side verification
-            authToken: localStorage.getItem('sb-access-token'),
+            userId: authStatus.userId
           }),
         });
 
