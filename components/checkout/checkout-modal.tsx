@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import { EmbeddedCheckout, EmbeddedCheckoutProvider } from '@stripe/react-stripe-js';
 import { getStripePromise } from '@/lib/stripe-client';
 import { useRouter } from 'next/navigation';
+import { checkAuthClientSide, refreshSession } from '@/lib/auth-client';
 
 interface CheckoutModalProps {
   isOpen: boolean;
@@ -16,50 +17,36 @@ export default function CheckoutModal({ isOpen, onClose, cartItems }: CheckoutMo
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [userId, setUserId] = useState<string | null>(null);
   const router = useRouter();
 
-  // Check auth status first
   useEffect(() => {
-    const checkAuthStatus = async () => {
-      if (!isOpen) return;
-      
-      try {
-        setLoading(true);
-        const response = await fetch('/api/auth/status');
-        
-        if (!response.ok) {
-          const data = await response.json();
-          throw new Error(data.error || 'Authentication required');
-        }
-        
-        const data = await response.json();
-        setUserId(data.user.id);
-      } catch (err: any) {
-        console.error('Auth check error:', err);
-        setError('Authentication required');
-        setLoading(false);
-      }
-    };
-    
-    checkAuthStatus();
-  }, [isOpen]);
+    if (!isOpen) return;
 
-  // Only fetch checkout session when we have a userId
-  useEffect(() => {
-    if (!isOpen || !userId) return;
-
-    const fetchCheckoutSession = async () => {
+    const initializeCheckout = async () => {
       try {
         setLoading(true);
         setError(null);
-
-        console.log('Creating checkout with verified userId:', userId);
-
+        
+        // First try to refresh the session
+        await refreshSession();
+        
+        // Check auth status client-side
+        const authStatus = await checkAuthClientSide();
+        
+        if (!authStatus.authenticated) {
+          console.error('Authentication required for checkout');
+          setError('Authentication required');
+          setLoading(false);
+          return;
+        }
+        
+        console.log('Authenticated user:', authStatus.userId);
+        
         // Prepare return URL with origin
         const returnUrl = `${window.location.origin}/checkout/return?session_id={CHECKOUT_SESSION_ID}`;
 
-        const response = await fetch('/api/embedded-checkout', {
+        // Create checkout session with direct user ID
+        const response = await fetch('/api/embedded-checkout-direct', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -67,7 +54,9 @@ export default function CheckoutModal({ isOpen, onClose, cartItems }: CheckoutMo
           body: JSON.stringify({
             items: cartItems,
             returnUrl,
-            userId: userId
+            userId: authStatus.userId,
+            // Include auth token from localStorage to help with server-side verification
+            authToken: localStorage.getItem('sb-access-token'),
           }),
         });
 
@@ -78,20 +67,24 @@ export default function CheckoutModal({ isOpen, onClose, cartItems }: CheckoutMo
 
         const { clientSecret } = await response.json();
         setClientSecret(clientSecret);
-        setLoading(false);
       } catch (err: any) {
         console.error('Error creating checkout session:', err);
         setError(err.message || 'Failed to create checkout session');
+      } finally {
         setLoading(false);
       }
     };
 
-    fetchCheckoutSession();
-  }, [isOpen, cartItems, userId]);
+    initializeCheckout();
+  }, [isOpen, cartItems]);
 
   const handleRedirectToLogin = () => {
     localStorage.setItem('redirectAfterLogin', '/cart');
     router.push('/login');
+    onClose();
+  };
+
+  const handleClose = () => {
     onClose();
   };
 
@@ -101,7 +94,7 @@ export default function CheckoutModal({ isOpen, onClose, cartItems }: CheckoutMo
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
       <div className="relative w-full max-w-md p-6 bg-white rounded-lg shadow-xl">
         <button
-          onClick={onClose}
+          onClick={handleClose}
           className="absolute top-4 right-4 text-gray-500 hover:text-gray-700"
         >
           <span className="sr-only">Close</span>
@@ -126,7 +119,7 @@ export default function CheckoutModal({ isOpen, onClose, cartItems }: CheckoutMo
               </button>
             ) : (
               <button 
-                onClick={onClose}
+                onClick={handleClose}
                 className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
               >
                 Return to Cart

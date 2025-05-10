@@ -52,10 +52,10 @@ export default function CartPage() {
   setErrorMessage(null);
   
   try {
-    // Check authentication status first
-    const authResponse = await fetch('/api/auth/status');
+    // Check auth directly on the client side
+    const authStatus = await checkAuthClientSide();
     
-    if (!authResponse.ok) {
+    if (!authStatus.authenticated) {
       // Not authenticated, redirect to login
       localStorage.setItem('redirectAfterLogin', '/cart');
       router.push('/login');

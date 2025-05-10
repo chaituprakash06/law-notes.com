@@ -1,135 +1,116 @@
+// app/login/page.tsx (or your login component)
 'use client';
 
-import { useState, Suspense } from 'react';
+import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import Link from 'next/link';
-import { signIn } from '@/lib/supabase';
-import { useAuth } from '@/lib/AuthContext';
-import Header from '@/components/Header';
+import { supabase } from '@/lib/supabase';
 
-// Split into content component that uses hooks requiring client-side data
-function LoginContent() {
+export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirect = searchParams.get('redirect') || '/';
-  const { refreshUser } = useAuth();
+  
+  const redirectPath = searchParams?.get('redirect') || '/dashboard';
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    setLoading(true);
     setError(null);
-    setIsLoading(true);
 
     try {
-      const { error } = await signIn(email, password);
+      // Sign in with Supabase
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-      if (error) {
-        throw error;
+      if (error) throw error;
+
+      console.log('Login successful, user:', data.user?.id);
+      
+      // Manually ensure the auth token is saved in both localStorage and as a cookie
+      if (data.session?.access_token) {
+        localStorage.setItem('sb-access-token', data.session.access_token);
+        document.cookie = `sb-access-token=${data.session.access_token}; path=/; max-age=604800; SameSite=Lax`;
       }
-
-      // Refresh the user context
-      await refreshUser();
-
-      // Redirect after successful login
-      router.push(redirect);
-    } catch (error: any) {
-      setError(error.message);
+      
+      if (data.session?.refresh_token) {
+        localStorage.setItem('sb-refresh-token', data.session.refresh_token);
+        document.cookie = `sb-refresh-token=${data.session.refresh_token}; path=/; max-age=604800; SameSite=Lax`;
+      }
+      
+      // Small delay to ensure the session is fully established
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Check for stored redirect in localStorage first (from cart)
+      const storedRedirect = localStorage.getItem('redirectAfterLogin');
+      if (storedRedirect) {
+        localStorage.removeItem('redirectAfterLogin'); // Clear after use
+        router.push(storedRedirect);
+      } else {
+        // Otherwise use the URL param
+        router.push(redirectPath);
+      }
+    } catch (err: any) {
+      console.error('Login error:', err);
+      setError(err.message || 'Failed to sign in');
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="max-w-md mx-auto">
-        <h1 className="text-3xl font-bold mb-8 text-center">Log In</h1>
-        
-        {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
-            {error}
-          </div>
-        )}
-        
-        <form onSubmit={handleLogin} className="space-y-6">
-          <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-              Email Address
-            </label>
-            <input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-              placeholder="you@example.com"
-            />
-          </div>
-          
-          <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
-              Password
-            </label>
-            <input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-              placeholder="••••••••"
-            />
-          </div>
-          
-          <button
-            type="submit"
-            disabled={isLoading}
-            className={`w-full py-2 px-4 rounded-lg text-white ${
-              isLoading ? 'bg-blue-400' : 'bg-blue-600 hover:bg-blue-700'
-            }`}
-          >
-            {isLoading ? 'Logging in...' : 'Log In'}
-          </button>
-        </form>
-        
-        <p className="mt-8 text-center text-gray-600">
-          Don't have an account?{' '}
-          <Link href="/register" className="text-blue-600 hover:underline">
-            Register
-          </Link>
-        </p>
-      </div>
-    </div>
-  );
-}
-
-// Loading fallback component
-function LoadingFallback() {
-  return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="max-w-md mx-auto">
-        <h1 className="text-3xl font-bold mb-8 text-center">Log In</h1>
-        <div className="animate-pulse space-y-6">
-          <div className="h-10 bg-gray-200 rounded-lg w-full"></div>
-          <div className="h-10 bg-gray-200 rounded-lg w-full"></div>
-          <div className="h-10 bg-gray-200 rounded-lg w-full"></div>
+    <div className="max-w-md mx-auto p-6 bg-white rounded-lg shadow-md mt-12">
+      <h1 className="text-2xl font-bold mb-6">Sign In</h1>
+      
+      {error && (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+          {error}
         </div>
-      </div>
+      )}
+      
+      <form onSubmit={handleLogin}>
+        <div className="mb-4">
+          <label className="block text-gray-700 mb-2" htmlFor="email">
+            Email
+          </label>
+          <input
+            id="email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="w-full px-3 py-2 border rounded-lg"
+            required
+          />
+        </div>
+        
+        <div className="mb-6">
+          <label className="block text-gray-700 mb-2" htmlFor="password">
+            Password
+          </label>
+          <input
+            id="password"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="w-full px-3 py-2 border rounded-lg"
+            required
+          />
+        </div>
+        
+        <button
+          type="submit"
+          disabled={loading}
+          className={`w-full py-3 rounded-lg text-white ${
+            loading ? 'bg-blue-400' : 'bg-blue-600 hover:bg-blue-700'
+          }`}
+        >
+          {loading ? 'Signing In...' : 'Sign In'}
+        </button>
+      </form>
     </div>
-  );
-}
-
-// Main page component with Suspense boundary
-export default function LoginPage() {
-  return (
-    <main className="min-h-screen bg-white">
-      <Header />
-      <Suspense fallback={<LoadingFallback />}>
-        <LoginContent />
-      </Suspense>
-    </main>
   );
 }

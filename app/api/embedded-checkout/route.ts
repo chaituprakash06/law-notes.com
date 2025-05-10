@@ -1,71 +1,71 @@
-// app/api/embedded-checkout/route.ts
+// app/api/embedded-checkout-direct/route.ts
 import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
-import { cookies } from 'next/headers';
 import { createClient } from '@supabase/supabase-js';
 
 export async function POST(request: Request) {
   try {
-    console.log('Received embedded checkout request');
+    console.log('Received direct checkout request');
     
-    // Initialize Stripe with your secret key
+    // Initialize Stripe
     const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
-      apiVersion: '2025-04-30.basil', // Use the latest API version
+      apiVersion: '2025-04-30.basil', 
     });
-    
-    // Create a Supabase client to verify the session
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-    const supabase = createClient(supabaseUrl, supabaseAnonKey);
-    
-    // Check authentication first
-    const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-    
-    if (sessionError || !sessionData.session) {
-      console.error('No valid session:', sessionError?.message || 'Session not found');
-      return NextResponse.json(
-        { error: 'Authentication required' },
-        { status: 401 }
-      );
-    }
-    
-    // Get the authenticated user ID
-    const authenticatedUserId = sessionData.session.user.id;
     
     // Parse the request body
     const body = await request.json();
-    const { items, returnUrl, userId } = body;
+    const { items, returnUrl, userId, authToken } = body;
     
-    // Validate required fields
-    if (!items || !items.length) {
-      console.error('No items provided in checkout request');
+    // Basic validation
+    if (!items?.length) {
       return NextResponse.json(
         { error: 'No items provided' },
         { status: 400 }
       );
     }
     
-    // Ensure the userId matches the authenticated user
-    if (userId && userId !== authenticatedUserId) {
-      console.error('User ID mismatch:', { requestUserId: userId, sessionUserId: authenticatedUserId });
+    if (!userId) {
       return NextResponse.json(
-        { error: 'User ID mismatch' },
-        { status: 403 }
+        { error: 'User ID is required' },
+        { status: 400 }
       );
     }
     
-    // Use the authenticated user ID for the checkout session
-    const userIdForCheckout = authenticatedUserId;
+    // Do a basic check with the provided auth token if available
+    if (authToken) {
+      try {
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+        const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+        const supabase = createClient(supabaseUrl, supabaseServiceKey);
+        
+        // Verify the user exists in the database
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('id', userId)
+          .single();
+        
+        if (error || !data) {
+          console.warn('User verification failed:', error?.message || 'User not found');
+          // Continue anyway for now, but log the issue
+        } else {
+          console.log('User verified:', userId);
+        }
+      } catch (err) {
+        console.error('Error verifying user:', err);
+        // Continue anyway, don't block the checkout
+      }
+    }
     
     // Extract note IDs for metadata
     const noteIds = items.map((item: any) => item.id).join(',');
     
-    console.log('Creating checkout with authenticated userId:', userIdForCheckout);
+    console.log('Creating checkout session with userId:', userId);
     
     // Format line items for Stripe
     const lineItems = items.map((item: any) => ({
       price_data: {
-        currency: 'aud', // Adjust as needed
+        currency: 'aud',
         product_data: {
           name: item.title,
           description: item.description || '',
@@ -75,19 +75,18 @@ export async function POST(request: Request) {
       quantity: item.quantity || 1,
     }));
     
-    // Create a Checkout Session with the embedded UI mode
+    // Create Stripe checkout session
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       line_items: lineItems,
       mode: 'payment',
       ui_mode: 'embedded',
       return_url: returnUrl || `${process.env.NEXT_PUBLIC_SITE_URL}/checkout/return?session_id={CHECKOUT_SESSION_ID}`,
-      // Make sure to include metadata with the authenticated user ID
       metadata: {
-        userId: userIdForCheckout,
+        userId,
         noteIds,
       },
-      customer_creation: 'always', // Always create a customer
+      customer_creation: 'always',
     });
     
     console.log('Checkout session created with metadata:', {

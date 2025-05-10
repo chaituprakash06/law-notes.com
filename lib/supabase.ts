@@ -1,18 +1,59 @@
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+// lib/supabase.ts
+import { createClient } from '@supabase/supabase-js';
 
-// Replace these with your Supabase project URL and anon key
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
-// Create Supabase client with persistent sessions enabled
+// Configure the Supabase client with cookie-based auth
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
-    persistSession: true, // Enable persistent sessions
-    autoRefreshToken: true, // Automatically refresh token
-    detectSessionInUrl: true, // Detect session in URL for OAuth
-    storageKey: 'sb-auth-token', // Specify storage key
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true,
+    storageKey: 'sb-auth-token',
+    storage: {
+      getItem: (key) => {
+        if (typeof window === 'undefined') {
+          return null;
+        }
+        
+        // Try to get from localStorage first
+        const value = localStorage.getItem(key);
+        if (value) return value;
+        
+        // If not in localStorage, check cookies
+        const cookies = document.cookie.split(';');
+        for (const cookie of cookies) {
+          const [cookieName, cookieValue] = cookie.trim().split('=');
+          if (cookieName === key) {
+            return cookieValue;
+          }
+        }
+        
+        return null;
+      },
+      setItem: (key, value) => {
+        if (typeof window === 'undefined') {
+          return;
+        }
+        
+        localStorage.setItem(key, value);
+        // Also set as cookie for API routes
+        document.cookie = `${key}=${value}; path=/; max-age=604800; SameSite=Lax`;
+      },
+      removeItem: (key) => {
+        if (typeof window === 'undefined') {
+          return;
+        }
+        
+        localStorage.removeItem(key);
+        // Also remove from cookies
+        document.cookie = `${key}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax`;
+      },
+    },
   },
 });
+
 
 // Types for user profiles in Supabase
 export type UserProfile = {
