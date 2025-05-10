@@ -65,7 +65,7 @@ export async function POST(request: Request) {
     // Format line items for Stripe
     const lineItems = items.map((item: any) => ({
       price_data: {
-        currency: 'aud',
+        currency: 'usd',
         product_data: {
           name: item.title,
           description: item.description || '',

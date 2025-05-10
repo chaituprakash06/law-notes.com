@@ -80,7 +80,7 @@ export async function POST(request: Request) {
       
       return {
         price_data: {
-          currency: 'aud',
+          currency: 'usd',
           product_data: productData,
           unit_amount: Math.round(item.price * 100), // Convert to cents
         },

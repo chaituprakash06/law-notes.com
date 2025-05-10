@@ -30,7 +30,7 @@ export async function POST(request: Request) {
       // Otherwise, create a price on the fly
       return {
         price_data: {
-          currency: 'aud',
+          currency: 'usd',
           product_data: {
             name: item.title,
             metadata: {
