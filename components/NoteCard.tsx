@@ -1,9 +1,9 @@
-// Updated NoteCard.tsx to work with full URLs in the file_url column
-
+// /components/NoteCard.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
 import { CartItem, addToCart } from '@/lib/stripe';
+import NoteChatbot from './NoteChatbot';
 
 type Note = {
   id: string;
@@ -27,7 +27,7 @@ const signedUrlMap: Record<string, string> = {
   'previews/juris_law.png': 'https://zqdiwegblvrgyyfjjkfz.supabase.co/storage/v1/object/sign/law-notes/previews/company_image.png?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InN0b3JhZ2UtdXJsLXNpZ25pbmcta2V5X2I5YTdiYTUyLTc4MjQtNDZiOS1iZjJjLTI4MTdiMTJiZGZkNSJ9.eyJ1cmwiOiJsYXctbm90ZXMvcHJldmlld3MvY29tcGFueV9pbWFnZS5wbmciLCJpYXQiOjE3NDY4MTQwODgsImV4cCI6MTc0OTQwNjA4OH0.Vmd0GmXI0vhPd0usTepe1Ou0ZnlzyDUiF4uafF7GWNw'
 };
 
-/// Map to store signed download URLs by ID
+// Map to store signed download URLs by ID
 const signedDownloadUrlMap: Record<string, string> = {
   // Tax Law Notes (ID: 4d9fc245-ed05-404c-af40-a093bdd9257)
   '4d9fc245-ed05-404c-af40-a093bdd9257': 'https://zqdiwegblvrgyyfjjkfz.supabase.co/storage/v1/object/sign/law-notes/notes/company_law.docx?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InN0b3JhZ2UtdXJsLXNpZ25pbmcta2V5X2I5YTdiYTUyLTc4MjQtNDZiOS1iZjJjLTI4MTdiMTJiZGZkNSJ9.eyJ1cmwiOiJsYXctbm90ZXMvbm90ZXMvY29tcGFueV9sYXcuZG9jeCIsImlhdCI6MTc0NjgzODk2MiwiZXhwIjoxNzQ5NDMwOTYyfQ.TEAs6yqOnDLrUQTIzH4fd5LQ7o_6JlUKfBAtzFe0HWM',
@@ -47,6 +47,16 @@ export default function NoteCard({ note, isPurchased = false }: NoteCardProps) {
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [downloadError, setDownloadError] = useState(false);
+  const [showChat, setShowChat] = useState(false);
+
+  // Get note type for chatbot
+  const getNoteType = () => {
+    const title = note.title.toLowerCase();
+    if (title.includes('tax')) return 'tax';
+    if (title.includes('jurisprudence')) return 'jurisprudence';
+    if (title.includes('company')) return 'company';
+    return 'tax'; // Default fallback
+  };
 
   useEffect(() => {
     const loadPreview = () => {
@@ -111,56 +121,57 @@ export default function NoteCard({ note, isPurchased = false }: NoteCardProps) {
   };
   
   const handleDownload = () => {
-  if (!isPurchased) return;
-  
-  setIsDownloading(true);
-  setDownloadError(false);
-  
-  try {
-    let downloadUrl;
-    let filename;
+    if (!isPurchased) return;
     
-    // Determine which document to download based on the note title or ID
-    if (note.title.toLowerCase().includes('tax')) {
-      downloadUrl = 'https://zqdiwegblvrgyyfjjkfz.supabase.co/storage/v1/object/sign/law-notes/notes/tax_law.pdf?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InN0b3JhZ2UtdXJsLXNpZ25pbmcta2V5X2I5YTdiYTUyLTc4MjQtNDZiOS1iZjJjLTI4MTdiMTJiZGZkNSJ9.eyJ1cmwiOiJsYXctbm90ZXMvbm90ZXMvdGF4X2xhdy5wZGYiLCJpYXQiOjE3NDY4Mzg1NTcsImV4cCI6MTc0OTQzMDU1N30.Vm2OTClwZE2NIEzR2Up40-7-CkuaNvC9___8SvmjxCM';
-      filename = 'Tax Law Notes.pdf';
-    } else if (note.title.toLowerCase().includes('juris')) {
-      downloadUrl = 'https://zqdiwegblvrgyyfjjkfz.supabase.co/storage/v1/object/sign/law-notes/notes/juris_law.docx?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InN0b3JhZ2UtdXJsLXNpZ25pbmcta2V5X2I5YTdiYTUyLTc4MjQtNDZiOS1iZjJjLTI4MTdiMTJiZGZkNSJ9.eyJ1cmwiOiJsYXctbm90ZXMvbm90ZXMvanVyaXNfbGF3LmRvY3giLCJpYXQiOjE3NDY4Mzg3MDgsImV4cCI6MTc0OTQzMDcwOH0.6upB-ZRlMLJVqEfqZJEwSZnXir1Q2ecMMOtQ2HdiRJw';
-      filename = 'Jurisprudence Law Notes.docx';
-    } else if (note.title.toLowerCase().includes('company')) {
-      downloadUrl = 'https://zqdiwegblvrgyyfjjkfz.supabase.co/storage/v1/object/sign/law-notes/notes/company_law.docx?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InN0b3JhZ2UtdXJsLXNpZ25pbmcta2V5X2I5YTdiYTUyLTc4MjQtNDZiOS1iZjJjLTI4MTdiMTJiZGZkNSJ9.eyJ1cmwiOiJsYXctbm90ZXMvbm90ZXMvY29tcGFueV9sYXcuZG9jeCIsImlhdCI6MTc0NjgzODk2MiwiZXhwIjoxNzQ5NDMwOTYyfQ.TEAs6yqOnDLrUQTIzH4fd5LQ7o_6JlUKfBAtzFe0HWM';
-      filename = 'Company Law Notes.docx';
-    } else {
-      throw new Error(`Unrecognized note type: ${note.title}`);
+    setIsDownloading(true);
+    setDownloadError(false);
+    
+    try {
+      let downloadUrl;
+      let filename;
+      
+      // Determine which document to download based on the note title or ID
+      if (note.title.toLowerCase().includes('tax')) {
+        downloadUrl = 'https://zqdiwegblvrgyyfjjkfz.supabase.co/storage/v1/object/sign/law-notes/notes/tax_law.pdf?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InN0b3JhZ2UtdXJsLXNpZ25pbmcta2V5X2I5YTdiYTUyLTc4MjQtNDZiOS1iZjJjLTI4MTdiMTJiZGZkNSJ9.eyJ1cmwiOiJsYXctbm90ZXMvbm90ZXMvdGF4X2xhdy5wZGYiLCJpYXQiOjE3NDY4Mzg1NTcsImV4cCI6MTc0OTQzMDU1N30.Vm2OTClwZE2NIEzR2Up40-7-CkuaNvC9___8SvmjxCM';
+        filename = 'Tax Law Notes.pdf';
+      } else if (note.title.toLowerCase().includes('juris')) {
+        downloadUrl = 'https://zqdiwegblvrgyyfjjkfz.supabase.co/storage/v1/object/sign/law-notes/notes/juris_law.docx?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InN0b3JhZ2UtdXJsLXNpZ25pbmcta2V5X2I5YTdiYTUyLTc4MjQtNDZiOS1iZjJjLTI4MTdiMTJiZGZkNSJ9.eyJ1cmwiOiJsYXctbm90ZXMvbm90ZXMvanVyaXNfbGF3LmRvY3giLCJpYXQiOjE3NDY4Mzg3MDgsImV4cCI6MTc0OTQzMDcwOH0.6upB-ZRlMLJVqEfqZJEwSZnXir1Q2ecMMOtQ2HdiRJw';
+        filename = 'Jurisprudence Law Notes.docx';
+      } else if (note.title.toLowerCase().includes('company')) {
+        downloadUrl = 'https://zqdiwegblvrgyyfjjkfz.supabase.co/storage/v1/object/sign/law-notes/notes/company_law.docx?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InN0b3JhZ2UtdXJsLXNpZ25pbmcta2V5X2I5YTdiYTUyLTc4MjQtNDZiOS1iZjJjLTI4MTdiMTJiZGZkNSJ9.eyJ1cmwiOiJsYXctbm90ZXMvbm90ZXMvY29tcGFueV9sYXcuZG9jeCIsImlhdCI6MTc0NjgzODk2MiwiZXhwIjoxNzQ5NDMwOTYyfQ.TEAs6yqOnDLrUQTIzH4fd5LQ7o_6JlUKfBAtzFe0HWM';
+        filename = 'Company Law Notes.docx';
+      } else {
+        throw new Error(`Unrecognized note type: ${note.title}`);
+      }
+      
+      // Add cache-busting parameter
+      downloadUrl += (downloadUrl.includes('?') ? '&' : '?') + '_t=' + Date.now();
+      
+      // Create download link
+      const a = document.createElement('a');
+      a.href = downloadUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      
+    } catch (error) {
+      console.error('Error downloading file:', error);
+      setDownloadError(true);
+      
+      // Type check the error properly
+      if (error instanceof Error) {
+        alert(`Failed to download file: ${error.message}`);
+      } else {
+        alert("Failed to download file. Please try again later.");
+      }
+    } finally {
+      setTimeout(() => {
+        setIsDownloading(false);
+      }, 800);
     }
-    
-    // Add cache-busting parameter
-    downloadUrl += (downloadUrl.includes('?') ? '&' : '?') + '_t=' + Date.now();
-    
-    // Create download link
-    const a = document.createElement('a');
-    a.href = downloadUrl;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    
-  } catch (error) {
-  console.error('Error downloading file:', error);
-  setDownloadError(true);
-  
-  // Type check the error properly
-  if (error instanceof Error) {
-    alert(`Failed to download file: ${error.message}`);
-  } else {
-    alert("Failed to download file. Please try again later.");
-  }
-} finally {
-  setTimeout(() => {
-    setIsDownloading(false);
-  }, 800);
-}
-};
+  };
+
   const handlePreviewError = () => {
     setPreviewError(true);
   };
@@ -169,6 +180,11 @@ export default function NoteCard({ note, isPurchased = false }: NoteCardProps) {
     if (previewUrl && !previewError) {
       setIsPreviewModalOpen(true);
     }
+  };
+
+  // Toggle chat visibility
+  const toggleChat = () => {
+    setShowChat(!showChat);
   };
 
   return (
@@ -279,8 +295,8 @@ export default function NoteCard({ note, isPurchased = false }: NoteCardProps) {
             </button>
           )}
           
-          {/* Download or Add to Cart button */}
-          {isPurchased ? (
+          {/* Download button - for purchased notes */}
+          {isPurchased && (
             <button 
               onClick={handleDownload}
               disabled={isDownloading}
@@ -305,7 +321,10 @@ export default function NoteCard({ note, isPurchased = false }: NoteCardProps) {
                 </>
               )}
             </button>
-          ) : (
+          )}
+          
+          {/* Add to Cart button - for non-purchased notes */}
+          {!isPurchased && (
             <button 
               onClick={handleAddToCart}
               disabled={isAddingToCart}
@@ -331,6 +350,34 @@ export default function NoteCard({ note, isPurchased = false }: NoteCardProps) {
               )}
             </button>
           )}
+          
+          {/* Chat Assistant button - only for purchased notes */}
+          {isPurchased && (
+            <button 
+              onClick={toggleChat}
+              className={`flex-1 flex items-center justify-center py-2 px-4 rounded-lg transition ${
+                showChat 
+                  ? 'bg-indigo-600 text-white' 
+                  : 'bg-gray-200 hover:bg-gray-300 text-gray-800'
+              }`}
+            >
+              <svg 
+                xmlns="http://www.w3.org/2000/svg" 
+                className="h-5 w-5 mr-2" 
+                fill="none" 
+                viewBox="0 0 24 24" 
+                stroke="currentColor"
+              >
+                <path 
+                  strokeLinecap="round" 
+                  strokeLinejoin="round" 
+                  strokeWidth={2} 
+                  d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" 
+                />
+              </svg>
+              {showChat ? 'Hide Assistant' : 'Ask Assistant'}
+            </button>
+          )}
         </div>
       </div>
 
@@ -340,6 +387,15 @@ export default function NoteCard({ note, isPurchased = false }: NoteCardProps) {
           imageUrl={previewUrl}
           title={note.title}
           onClose={() => setIsPreviewModalOpen(false)}
+        />
+      )}
+      
+      {/* Chat Assistant - only shown when purchased and toggled on */}
+      {isPurchased && showChat && (
+        <NoteChatbot 
+          noteId={note.id} 
+          noteType={getNoteType()}
+          noteTitle={note.title}
         />
       )}
     </div>

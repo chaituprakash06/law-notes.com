@@ -5,7 +5,10 @@ import { createClient } from '@supabase/supabase-js';
 
 export async function middleware(request: NextRequest) {
   // Skip during development for login-test page
-  if (request.nextUrl.pathname.startsWith('/login-test')) {
+  if (
+    request.nextUrl.pathname.startsWith('/login-test') ||
+    request.nextUrl.pathname.startsWith('/api/chat') // Skip auth check for chat API during testing
+  ) {
     return NextResponse.next();
   }
 
@@ -29,7 +32,10 @@ export async function middleware(request: NextRequest) {
 
     // Define protected routes that require authentication
     const protectedRoutes = ['/dashboard'];
-    const protectedApiRoutes = ['/api/embedded-checkout'];
+    const protectedApiRoutes = [
+      '/api/embedded-checkout',
+      '/api/chat' // Add the chat API endpoint
+    ];
     
     const isProtectedRoute = protectedRoutes.some(route => 
       request.nextUrl.pathname.startsWith(route)
@@ -73,7 +79,8 @@ export const config = {
   matcher: [
     // Protected routes
     '/dashboard/:path*',
-    '/api/embedded-checkout', 
+    '/api/embedded-checkout',
+    '/api/chat',
     // Don't add checkout routes here during debugging
     // '/checkout/:path*',
     // Login/register routes for auth state detection

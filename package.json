@@ -2,28 +2,34 @@
   "name": "law-notes",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "scripts": {
-    "dev": "next dev --turbopack",
-    "build": "next build",
-    "start": "next start",
-    "lint": "next lint"
-  },
+  "dev": "next dev --turbopack",
+  "build": "next build",
+  "start": "next start",
+  "lint": "next lint",
+  "list-assistants": "node scripts/list-assistants.js",
+  "create-assistants": "node scripts/create-assistants.js"
+},
   "dependencies": {
     "@stripe/react-stripe-js": "^3.7.0",
     "@stripe/stripe-js": "^7.3.0",
     "@supabase/supabase-js": "^2.49.4",
     "@vercel/analytics": "^1.5.0",
+    "dotenv": "^16.5.0",
     "next": "^15.3.2",
+    "openai": "^4.100.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "stripe": "^18.1.0"
+    "stripe": "^18.1.0",
+    "ts-node": "^10.9.2"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
+    "@types/node": "^20.17.48",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5.8.3"
   }
 }
