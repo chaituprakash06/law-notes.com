@@ -4,6 +4,7 @@
 import { useState, useEffect } from 'react';
 import { CartItem, addToCart } from '@/lib/stripe';
 import NoteChatbot from './NoteChatbot';
+import { track } from '@vercel/analytics';
 
 type Note = {
   id: string;
@@ -354,7 +355,10 @@ export default function NoteCard({ note, isPurchased = false }: NoteCardProps) {
           {/* Chat Assistant button - only for purchased notes */}
           {isPurchased && (
             <button 
-              onClick={toggleChat}
+              onClick={() => {
+                track('Ask Assistant');
+                toggleChat();
+              }}
               className={`flex-1 flex items-center justify-center py-2 px-4 rounded-lg transition ${
                 showChat 
                   ? 'bg-indigo-600 text-white' 
