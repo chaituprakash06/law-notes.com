@@ -5,6 +5,7 @@ import { supabase, Note, getStoragePublicUrl } from '@/lib/supabase';
 import { useAuth } from '@/lib/AuthContext';
 import NoteCard from '@/components/NoteCard';
 import Header from '@/components/Header';
+import SellerRequestBox from '@/components/SellerRequestBox';
 
 // Fallback mock data in case of API failure
 const mockNotes: Note[] = [
@@ -13,15 +14,15 @@ const mockNotes: Note[] = [
     title: 'Tax Law Notes',
     description: 'Tax notes as at LSE 2024 exams',
     price: 19.99,
-    preview_url: 'previews/tax_image.png', // Remove leading slash for Supabase storage
+    preview_url: 'previews/tax_image.png',
     file_url: 'previews/tax_law.pdf',
   },
   {
     id: '2',
-    title: 'Jurisprudence Law Notes', // Fixed the order to match your image
+    title: 'Jurisprudence Law Notes',
     description: 'Jurisprudence notes as at LSE 2024 exams',
     price: 19.99,
-    preview_url: 'previews/juris_image.png', // Remove leading slash for Supabase storage
+    preview_url: 'previews/juris_image.png',
     file_url: 'previews/juris_law.docx',
   },
   {
@@ -29,7 +30,7 @@ const mockNotes: Note[] = [
     title: 'Company Law Notes',
     description: 'Company notes as at LSE 2024 exams',
     price: 19.99,
-    preview_url: 'previews/company_image.png', // Remove leading slash for Supabase storage
+    preview_url: 'previews/company_image.png',
     file_url: 'previews/company_law.docx',
   },
 ];
@@ -44,7 +45,6 @@ export default function Home() {
     // Fetch notes from Supabase
     const fetchNotes = async () => {
       try {
-        // First attempt to fetch from the database
         const { data, error } = await supabase
           .from('notes')
           .select('*')
@@ -52,18 +52,10 @@ export default function Home() {
           
         if (error) {
           console.error('Error fetching notes:', error);
-          // Use mock data if fetching fails
           loadMockNotes();
         } else if (data && data.length > 0) {
-          // Transform storage URLs to be fully qualified
-          const notesWithUrls = data.map(note => ({
-            ...note,
-            // Don't transform URLs here as getStoragePublicUrl will be called in the component
-          }));
-          
-          setNotes(notesWithUrls);
+          setNotes(data);
         } else {
-          // Use mock data if no notes found
           loadMockNotes();
         }
       } catch (error) {
@@ -74,15 +66,13 @@ export default function Home() {
 
     // Function to load mock notes with public URLs
     const loadMockNotes = () => {
-      // Pre-load each image to check if they exist
       Promise.all(
         mockNotes.map(async note => {
           try {
-            // Get public URLs for preview images
             const previewUrl = await getStoragePublicUrl(note.preview_url);
             return {
               ...note,
-              preview_url: previewUrl || note.preview_url, // Use original if transformation fails
+              preview_url: previewUrl || note.preview_url,
             };
           } catch (e) {
             console.error(`Error processing note ${note.id}:`, e);
@@ -132,6 +122,11 @@ export default function Home() {
       <Header />
       <div className="container mx-auto px-4 py-8">
         <h1 className="text-3xl font-bold mb-8 text-center">LSE Law Notes</h1>
+        
+        {/* Add Seller Request Box */}
+        <div className="mb-8 max-w-2xl mx-auto">
+          <SellerRequestBox />
+        </div>
         
         {isLoading ? (
           <div className="text-center py-12">

@@ -73,6 +73,19 @@ export type Note = {
   file_url: string;
 };
 
+export interface SellerRequest {
+  id: string;
+  user_id: string;
+  email: string;
+  subject_name: string;
+  exam_score: string;
+  file_url: string;
+  file_name: string;
+  status: 'pending' | 'approved' | 'rejected';
+  created_at: string;
+  updated_at: string;
+}
+
 // Authentication helper functions
 /**
  * Sign up a new user
@@ -242,3 +255,5 @@ export const getSignedStorageUrl = async (path: string, bucket: string = 'law-no
     return null;
   }
 };
+
+
