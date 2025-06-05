@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useAuth } from '@/lib/AuthContext';
 import { useRouter } from 'next/navigation';
 import SellerRequestModal from './SellerRequestModal';
+import { track } from '@vercel/analytics';
 
 export default function SellerRequestBox() {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -30,7 +31,10 @@ export default function SellerRequestBox() {
           Share your knowledge and earn money from your high-quality notes
         </p>
         <button
-          onClick={handleClick}
+          onClick={() => {
+            handleClick;
+            track('SubmitNotes');
+        }}
           className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 transition-colors font-medium"
         >
           Submit a request here
