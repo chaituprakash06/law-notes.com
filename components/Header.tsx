@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/AuthContext';
 import { getCart } from '@/lib/stripe';
+import MySubmittedNotes from './MySubmittedNotes';
 
 export default function Header() {
   const { user, signOut } = useAuth();
@@ -55,6 +56,9 @@ export default function Header() {
           
           {user ? (
             <div className="flex items-center space-x-6">
+              {/* My Submitted Notes button */}
+              <MySubmittedNotes />
+              
               {/* Display user email */}
               <span className="text-gray-600">{user.email}</span>
               
